@@ -1,0 +1,16 @@
+<div class="topbar">
+  <div class="tl">
+    <span>🏗️</span>
+    <span>特种设备电梯安全管理AI系统</span>
+  </div>
+  <div class="tr">
+    <div class="usr">
+      <div class="av"><%= (user && user.name) ? user.name.charAt(0).toUpperCase() : 'U' %></div>
+      <span class="ln"><%= (user && user.name) ? user.name : '' %></span>
+      <% if (user && user.role) { %>
+      <span class="rl"><%= user.role === 'admin' ? '管理员' : user.role === 'auditor' ? '审核员' : '普通用户' %></span>
+      <% } %>
+    </div>
+    <a href="/logout" class="btn btn-o" style="padding:5px 12px;font-size:12px;">退出</a>
+  </div>
+</div>
