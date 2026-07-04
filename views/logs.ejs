@@ -1,0 +1,140 @@
+<%- include('partials/head') %>
+<%- include('partials/topbar') %>
+<div class="shell">
+<%- include('partials/sidebar', {user: user}) %>
+<main class="main">
+  <div class="content">
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t">🔗 司法留痕 · 哈希链验证</div>
+        <button class="btn btn-s" onclick="verifyChain()" id="btnVerify">🔗 验证哈希链</button>
+      </div>
+      <div id="verifyResult" style="margin-bottom:14px;font-size:13px;min-height:20px"></div>
+
+      <div class="hash-box" id="hashChain">
+        <div style="text-align:center;padding:30px;color:#909399">加载中...</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t">📋 操作日志明细</div>
+        <div style="font-size:12px;color:#909399">共 <span id="logTotal">--</span> 条记录</div>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:60px">ID</th>
+            <th style="width:90px">操作</th>
+            <th>操作对象</th>
+            <th>详情</th>
+            <th>操作人</th>
+            <th style="width:160px">时间</th>
+          </tr>
+        </thead>
+        <tbody id="logsBody">
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:#909399;">加载中...</td></tr>
+        </tbody>
+      </table>
+      <div id="pagination" class="pg"></div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+(function(){
+  var currentPage=1;
+
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  function pad(n){return String(n).padStart(2,'0');}
+
+  function loadChain(){
+    fetch('/api/operation-logs', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var data=d.data||[];
+      document.getElementById('logTotal').textContent=d.total||data.length;
+      if(data.length===0){
+        document.getElementById('hashChain').innerHTML='<div style="text-align:center;padding:30px;color:#909399">暂无日志</div>';
+        return;
+      }
+      document.getElementById('hashChain').innerHTML=data.map(function(log){
+        var actColor=log.action==='CREATE'?'#4ec9b0':log.action==='UPDATE'?'#dcdcaa':log.action==='DELETE'?'#f56c6c':'#9cdcfe';
+        return '<div class="hb">'+
+               '<div><span class="hid">#'+log.id+'</span> · <span class="hact" style="color:'+actColor+'">'+esc(log.action)+'</span></div>'+
+               '<div style="margin:4px 0"><span class="hlink">prev_hash:</span> <span class="hval">'+esc(log.prev_hash||'').substring(0,24)+'...</span></div>'+
+               '<div><span class="hlink">hash:</span> <span class="hval">'+esc(log.hash||'').substring(0,24)+'...</span></div>'+
+               '<div style="margin-top:4px;color:#9cdcfe;font-size:11px">'+esc(log.target_type||'')+' · '+esc(log.detail||'').substring(0,60)+'</div>'+
+               '<div style="color:#4a4a4a;font-size:10px;margin-top:2px">'+esc(log.user_email||'')+'</div></div>';
+      }).join('');
+    }).catch(function(){
+      document.getElementById('hashChain').innerHTML='<div style="text-align:center;padding:30px;color:#f56c6c">加载失败</div>';
+    });
+  }
+
+  function loadLogs(page){
+    currentPage=page||1;
+    var tbody=document.getElementById('logsBody');
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#909399;">加载中...</td></tr>';
+    fetch('/api/operation-logs?page='+currentPage+'&limit=20', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var data=d.data||[];
+      if(data.length===0){
+        tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#909399;">暂无日志</td></tr>';
+        document.getElementById('pagination').innerHTML='';
+        return;
+      }
+      tbody.innerHTML=data.map(function(log){
+        var dt=new Date(log.timestamp);
+        var ts=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())+' '+pad(dt.getHours())+':'+pad(dt.getMinutes())+':'+pad(dt.getSeconds());
+        return '<tr>'+
+               '<td style="color:#409eff">#'+log.id+'</td>'+
+               '<td><span class="tag '+(log.action==='CREATE'?'tag-ok':log.action==='UPDATE'?'tag-info':log.action==='DELETE'?'tag-ng':'tag-mb')+'">'+esc(log.action)+'</span></td>'+
+               '<td style="font-size:12px">'+esc(log.target_type||'')+'</td>'+
+               '<td style="font-size:12px;color:#606266;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(log.detail||'')+'">'+esc(log.detail||'')+'</td>'+
+               '<td style="color:#909399;font-size:12px">'+esc(log.user_email||'')+'</td>'+
+               '<td style="color:#909399;font-size:11px">'+ts+'</td></tr>';
+      }).join('');
+      renderPagination(d.page,d.totalPages);
+    }).catch(function(){
+      tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#f56c6c;">加载失败</td></tr>';
+    });
+  }
+
+  function renderPagination(page,totalPages){
+    var pg=document.getElementById('pagination');
+    if(totalPages<=1){pg.innerHTML='';return;}
+    var items=[];
+    if(page>1) items.push('<a onclick="loadLogs('+(page-1)+')">‹ 上一页</a>');
+    for(var i=1;i<=totalPages;i++){
+      items.push(i===page?'<span class="on">'+i+'</span>':'<a onclick="loadLogs('+i+')">'+i+'</a>');
+    }
+    if(page<totalPages) items.push('<a onclick="loadLogs('+(page+1)+')">下一页 ›</a>');
+    pg.innerHTML=items.join('');
+  }
+
+  window.verifyChain=function(){
+    var btn=document.getElementById('btnVerify');
+    var result=document.getElementById('verifyResult');
+    btn.disabled=true;
+    btn.textContent='验证中...';
+    result.innerHTML='<span style="color:#909399">正在验证哈希链完整性...</span>';
+    fetch('/api/operation-logs/verify',{method:'POST'}, {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      btn.disabled=false;
+      btn.textContent='🔗 验证哈希链';
+      if(d.isValid){
+        result.innerHTML='<span style="color:#67c23a;font-weight:700">✅ 哈希链验证通过！</span> 共 '+d.totalBlocks+' 个区块，完整无误。';
+      } else {
+        result.innerHTML='<span style="color:#f56c6c;font-weight:700">❌ 哈希链验证失败！</span> 错误数: '+d.errors+' 条，链已被篡改。';
+      }
+    }).catch(function(){
+      btn.disabled=false;
+      btn.textContent='🔗 验证哈希链';
+      result.innerHTML='<span style="color:#f56c6c">❌ 验证失败，请重试</span>';
+    });
+  };
+
+  loadChain();
+  loadLogs();
+})();
+</script>
+<%- include('partials/foot') %>
