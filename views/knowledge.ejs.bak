@@ -1,0 +1,90 @@
+<%- include('partials/head') %>
+<%- include('partials/topbar') %>
+<div class="shell">
+<%- include('partials/sidebar', {user: user}) %>
+<main class="main">
+  <div class="content">
+    <div class="card">
+      <div class="card-h"><div class="card-t">📚 法规知识库</div>
+        <button class="btn btn-o" onclick="loadRegulations()" style="font-size:12px">🔄 刷新</button>
+      </div>
+      <div id="regulationsList">
+        <div style="text-align:center;padding:40px;color:#909399;">加载中...</div>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+(function(){
+  var loadedClauses={};
+
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  function loadRegulations(){
+    var container=document.getElementById('regulationsList');
+    container.innerHTML='<div style="text-align:center;padding:40px;color:#909399;">加载中...</div>';
+    fetch('/api/regulations', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var data=d.data||[];
+      if(data.length===0){
+        container.innerHTML='<div style="text-align:center;padding:40px;color:#909399;">暂无法规</div>';
+        return;
+      }
+      container.innerHTML=data.map(function(reg){
+        var tagCls=reg.category==='safety'?'tag-ok':reg.category==='inspection'?'tag-info':'tag-mb';
+        var tagTxt=reg.category==='safety'?'安全':reg.category==='inspection'?'检验':'其他';
+        return '<div class="ac" id="reg-'+reg.id+'">'+
+               '<button class="ah" onclick="toggleReg('+reg.id+')">'+esc(reg.name||'')+' <span class="tag '+tagCls+'" style="margin-left:8px;font-size:10px">'+tagTxt+'</span><span class="arw">▼</span></button>'+
+               '<div class="ab" id="clauses-'+reg.id+'"><div style="text-align:center;padding:20px;color:#909399;font-size:12px">加载条款中...</div></div></div>';
+      }).join('');
+    }).catch(function(){
+      container.innerHTML='<div style="text-align:center;padding:40px;color:#f56c6c;">加载失败</div>';
+    });
+  }
+
+  function toggleReg(id){
+    var btn=document.querySelector('#reg-'+id+' .ah');
+    var ab=document.getElementById('clauses-'+id);
+    var isOpen=btn.classList.contains('open');
+
+    if(isOpen){
+      btn.classList.remove('open');
+      ab.classList.remove('show');
+    } else {
+      btn.classList.add('open');
+      ab.classList.add('show');
+      if(!loadedClauses[id]){
+        loadClauses(id);
+      }
+    }
+  }
+
+  function loadClauses(regId){
+    fetch('/api/regulations/'+regId+'/clauses', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      loadedClauses[regId]=true;
+      var container=document.getElementById('clauses-'+regId);
+      var clauses=d.clauses||[];
+      if(clauses.length===0){
+        container.innerHTML='<div style="color:#909399;font-size:12px;padding:12px 0">暂无条款</div>';
+        return;
+      }
+      var reg=d.regulation||{};
+      container.innerHTML='<div style="margin-bottom:10px;font-size:12px;color:#909399">📖 '+esc(reg.code||'')+' · '+clauses.length+' 条条款</div>'+
+        clauses.map(function(c){
+          var catCls=c.category==='mandatory'?'tag-ng':c.category==='recommended'?'tag-info':'tag-mb';
+          var catTxt=c.category==='mandatory'?'强制':c.category==='recommended'?'推荐':'一般';
+          return '<div class="cl">'+
+                 '<div class="cn"><span style="font-size:11px;color:#909399">第 '+esc(c.clause_number||'')+' 条</span> · <span>'+esc(c.title||'')+'</span> <span class="tag '+catCls+'" style="margin-left:6px;font-size:10px">'+catTxt+'</span></div>'+
+                 '<div>'+esc(c.content||'').replace(/\n/g,'<br>')+'</div></div>';
+        }).join('');
+    }).catch(function(){
+      document.getElementById('clauses-'+regId).innerHTML='<div style="color:#f56c6c;font-size:12px;padding:12px 0">条款加载失败</div>';
+    });
+  }
+
+  window.toggleReg=toggleReg;
+  loadRegulations();
+})();
+</script>
+<%- include('partials/foot') %>
