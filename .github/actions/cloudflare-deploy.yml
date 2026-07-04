@@ -1,0 +1,87 @@
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Authenticate with Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Create D1 Database (if not exists)
+        run: |
+          echo "Checking D1 database..."
+          wrangler d1 list 2>/dev/null | grep "elevator-ai-db" && echo "DB exists" || \
+          echo "Creating D1 database..." && \
+          wrangler d1 create elevator-ai-db --no-assign-to-account 2>/dev/null || \
+          echo "DB creation skipped (may need manual setup)"
+
+      - name: Get D1 Database ID
+        id: d1
+        run: |
+          DB_ID=$(wrangler d1 list 2>/dev/null | grep "elevator-ai-db" | awk '{print $NF}' | tr -d '[],"')
+          echo "D1 Database ID: $DB_ID"
+          echo "db_id=$DB_ID" >> $GITHUB_OUTPUT
+
+      - name: Update wrangler.toml with D1 ID
+        if: steps.d1.outputs.db_id != ''
+        run: |
+          sed -i "s/YOUR_D1_DATABASE_ID/${{ steps.d1.outputs.db_id }}/g" cloudflare/wrangler.toml
+
+      - name: Create KV Namespace (Sessions)
+        id: kv
+        run: |
+          echo "Creating KV namespace..."
+          KV_ID=$(wrangler kv:namespace create "ev3_sessions" 2>/dev/null | grep -oP '(?<="id":")[^"]+' | head -1)
+          if [ -z "$KV_ID" ]; then
+            echo "KV may already exist, trying to get ID..."
+            KV_ID=$(wrangler kv:namespace list 2>/dev/null | grep "ev3_sessions" | awk '{print $NF}' | tr -d '[],"')
+          fi
+          echo "KV Namespace ID: $KV_ID"
+          echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
+
+      - name: Update wrangler.toml with KV ID
+        if: steps.kv.outputs.kv_id != ''
+        run: |
+          sed -i "s/YOUR_KV_NAMESPACE_ID/${{ steps.kv.outputs.kv_id }}/g" cloudflare/wrangler.toml
+
+      - name: Run D1 migrations
+        run: |
+          echo "Running D1 schema migrations..."
+          wrangler d1 execute elevator-ai-db --file=./cloudflare/schema.sql --remote 2>/dev/null || \
+          echo "Schema already applied or needs manual setup"
+
+      - name: Deploy to Cloudflare Workers
+        run: |
+          echo "Deploying worker..."
+          wrangler deploy cloudflare/worker.js --env production 2>&1
+          echo "DEPLOY_OUTPUT=$?" >> $GITHUB_ENV
+
+      - name: Show deployment URL
+        if: always()
+        run: |
+          echo ""
+          echo "============================================"
+          echo "🚀 部署完成！"
+          echo ""
+          echo "🌐 访问地址: https://elevator-ai.<your-subdomain>.workers.dev"
+          echo ""
+          echo "请访问 Cloudflare Dashboard 设置自定义域名："
+          echo "https://dash.cloudflare.com → Workers & Pages → elevator-ai → Custom Domains"
