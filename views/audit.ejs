@@ -1,0 +1,177 @@
+<%- include('partials/head') %>
+<%- include('partials/topbar') %>
+<div class="shell">
+<%- include('partials/sidebar', {user: user}) %>
+<main class="main">
+  <div class="content">
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t">🔍 人工审核任务</div>
+        <button class="btn btn-o" onclick="loadTasks()" style="font-size:12px">🔄 刷新</button>
+      </div>
+      <div style="margin-bottom:14px;font-size:12px;color:#909399">
+        共 <strong id="totalCount">--</strong> 条待审核任务
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:60px">ID</th>
+            <th>模板名称</th>
+            <th style="width:90px">AI判别</th>
+            <th style="width:90px">审核状态</th>
+            <th>提交人</th>
+            <th style="width:150px">提交时间</th>
+            <th style="width:80px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="7" style="text-align:center;padding:40px;color:#909399;">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+</div>
+
+<div class="modal-overlay" id="auditModal" style="display:none">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-h">
+      <span class="mht">审核详情</span>
+      <button class="mc" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-b" id="modalBody">加载中...</div>
+    <div class="modal-b" id="auditForm" style="border-top:1px solid var(--bd);padding-top:16px;display:none">
+      <div class="form-row">
+        <label>审核意见</label>
+        <textarea class="txta" id="auditComment" rows="3" placeholder="请输入审核意见（驳回时必须填写）"></textarea>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-o" onclick="closeModal()">关闭</button>
+      <button class="btn btn-s" id="btnApprove" onclick="doAudit('approve')">✅ 批准</button>
+      <button class="btn btn-d" id="btnReject" onclick="doAudit('reject')">❌ 驳回</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var currentRecordId=null;
+  var currentStatus=null;
+
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  function pad(n){return String(n).padStart(2,'0');}
+
+  function loadTasks(){
+    var tbody=document.getElementById('tableBody');
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:#909399;">加载中...</td></tr>';
+    fetch('/api/audit-tasks', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var data=d.data||[];
+      document.getElementById('totalCount').textContent=data.length;
+      if(data.length===0){
+        tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:#909399;">暂无待审核任务</td></tr>';
+        return;
+      }
+      tbody.innerHTML=data.map(function(t){
+        var aiTag=t.final_result==='合规'?'<span class="tag tag-ok">合规</span>':
+                  t.final_result==='不合规'?'<span class="tag tag-ng">不合规</span>':
+                  t.final_result==='待人工'?'<span class="tag tag-mb">待人工</span>':'<span class="tag tag-mb">'+esc(t.final_result||'待人工')+'</span>';
+        var stTag=t.status==='approved'?'<span class="tag tag-ok">已批准</span>':
+                  t.status==='rejected'?'<span class="tag tag-ng">已驳回</span>':
+                  t.status==='pending'?'<span class="tag tag-mb">待审核</span>':
+                  '<span class="tag tag-info">'+esc(t.status||'')+'</span>';
+        var dt=new Date(t.created_at);
+        var ts=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())+' '+pad(dt.getHours())+':'+pad(dt.getMinutes());
+        var actionBtn=t.status==='pending'?
+          '<button class="btn btn-p" style="padding:4px 10px;font-size:11px" onclick="showAudit('+t.record_id+')">审核</button>':
+          '<span style="font-size:11px;color:#909399">已完成</span>';
+        return '<tr>'+
+               '<td style="color:#409eff">#'+t.record_id+'</td>'+
+               '<td>'+esc(t.template_name||'')+'</td>'+
+               '<td>'+aiTag+'</td>'+
+               '<td>'+stTag+'</td>'+
+               '<td style="color:#909399;font-size:12px">'+esc(t.user_email||'')+'</td>'+
+               '<td style="color:#909399;font-size:12px">'+ts+'</td>'+
+               '<td>'+actionBtn+'</td></tr>';
+      }).join('');
+    }).catch(function(){
+      tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:40px;color:#f56c6c;">加载失败</td></tr>';
+    });
+  }
+
+  function showAudit(recordId){
+    currentRecordId=recordId;
+    document.getElementById('modalBody').innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
+    document.getElementById('auditForm').style.display='block';
+    document.getElementById('auditModal').style.display='flex';
+    document.getElementById('auditComment').value='';
+
+    fetch('/api/discrimination-records/'+recordId, {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var rec=d.record||{};
+      var tag=rec.final_result==='合规'?'<span class="tag tag-ok">合规</span>':
+              rec.final_result==='不合规'?'<span class="tag tag-ng">不合规</span>':
+              rec.final_result==='待人工'?'<span class="tag tag-mb">待人工</span>':'<span class="tag tag-mb">'+esc(rec.final_result||'待人工')+'</span>';
+      currentStatus=rec.final_result;
+
+      var rules=rec.rule_results||[];
+      var rulesHtml=rules.map(function(rule){
+        var icon=rule.status==='success'?'✅':rule.status==='error'?'❌':'⚠️';
+        var cls=rule.status==='success'?'ok':rule.status==='error'?'ng':'mb';
+        return '<div class="rule-result '+cls+'"><div class="rr-h"><span style="font-size:18px">'+icon+'</span><span class="rr-n">'+esc(rule.name||'')+'</span></div>'+
+               (rule.result?'<div class="rr-d">结果值: '+esc(rule.result)+'</div>':'')+
+               (rule.description?'<div class="rr-d">'+esc(rule.description)+'</div>':'')+
+               (rule.detail?'<div class="rr-d" style="color:#409eff">'+esc(rule.detail)+'</div>':'')+
+               (rule.formula?'<div class="rr-f">'+esc(rule.formula)+'</div>':'')+
+               (rule.clause?'<div class="rr-c">📖 '+esc(rule.clause)+'</div>':'')+'</div>';
+      }).join('');
+
+      document.getElementById('modalBody').innerHTML=
+        '<div class="info-grid mb"><div class="info-item"><span class="lb">ID：</span><span>#'+rec.id+'</span></div>'+
+        '<div class="info-item"><span class="lb">模板：</span><span>'+esc(rec.template_name||'')+'</span></div>'+
+        '<div class="info-item"><span class="lb">提交人：</span><span>'+esc(rec.user_email||'')+'</span></div>'+
+        '<div class="info-item"><span class="lb">AI判别：</span>'+tag+'</div></div>'+
+        (rec.conclusion?'<div style="padding:12px;background:#f9f9f9;border-radius:6px;font-size:13px;margin-bottom:14px">'+esc(rec.conclusion)+'</div>':'')+
+        '<div class="card-t mb">📋 规则执行明细</div>'+
+        (rulesHtml||'<div style="color:#909399">无规则明细</div>');
+    }).catch(function(){
+      document.getElementById('modalBody').innerHTML='<div style="color:#f56c6c;text-align:center;padding:30px">加载失败</div>';
+    });
+  }
+
+  window.closeModal=function(){
+    document.getElementById('auditModal').style.display='none';
+    currentRecordId=null;
+  };
+  document.getElementById('auditModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+  window.doAudit=function(action){
+    var comment=document.getElementById('auditComment').value.trim();
+    if(action==='reject'&&!comment){alert('驳回时必须填写审核意见');return;}
+
+    var btn=action==='approve'?document.getElementById('btnApprove'):document.getElementById('btnReject');
+    btn.disabled=true;
+    btn.textContent='处理中...';
+
+    fetch('/api/audit-tasks/'+currentRecordId+'/action',{credentials:'include',
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:action,comment:comment})
+    }).then(function(r){return r.json()}).then(function(d){
+      alert(d.message||'操作成功');
+      btn.disabled=false;
+      btn.textContent=action==='approve'?'✅ 批准':'❌ 驳回';
+      closeModal();
+      loadTasks();
+    }).catch(function(){
+      btn.disabled=false;
+      btn.textContent=action==='approve'?'✅ 批准':'❌ 驳回';
+      alert('操作失败');
+    });
+  };
+
+  window.showAudit=showAudit;
+  loadTasks();
+})();
+</script>
+<%- include('partials/foot') %>
