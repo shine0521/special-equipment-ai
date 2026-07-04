@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
+<title>司法留痕 · 特种设备AI</title>
+<style>
+:root{--p:#409eff;--s:#67c23a;--d:#f56c6c;--w:#e6a23c;--bg:#f5f7fa;--card:#fff;--tx:#303133;--t2:#606266;--t3:#909399;--t4:#c0c4ce;--bd:#dcdfe6;--bdr:8px;--term-bg:#1a1a2e;--term-border:#16213e}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font:13px/1.5 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);margin:0 auto;min-height:100vh;max-width:480px}
+.m-shell{min-height:100vh;padding-bottom:56px}
+.m-topbar{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.m-topbar .tl{font-size:15px;font-weight:600}
+.m-content{padding:10px}
+.m-card{background:var(--card);border-radius:var(--bdr);padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.m-card-h{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+
+/* ── 终端风格哈希链 ── */
+.m-terminal{background:var(--term-bg);border-radius:8px;padding:12px;max-height:280px;overflow-y:auto;font:9.5px/1.6 'Menlo','Monaco','Courier New',monospace;border:1px solid var(--term-border)}
+.m-terminal .tb{margin-bottom:6px;padding:7px 8px;background:#16213e;border-radius:5px;border-left:3px solid #0f3460;position:relative}
+.m-terminal .tb:last-child{margin-bottom:0}
+.m-terminal .tb .t-id{color:#e94560;font-weight:700;font-size:8px}
+.m-terminal .tb .t-act{color:#0f3460;font-size:8px;display:inline-block;padding:0 5px;background:#e94560;color:#fff;border-radius:2px;margin-left:4px}
+.m-terminal .tb .t-info{color:#a8d8ea;font-size:8px;margin-top:3px;word-break:break-all}
+.m-terminal .tb .t-user{color:#6a9955;font-size:8px}
+.m-terminal .tb .t-arrow{color:#546e7a}
+.m-terminal .tb .t-hash{color:#4ec9b0;font-size:8px;word-break:break-all}
+.m-terminal .tb .t-prev{color:#ce9178;font-size:8px;word-break:break-all}
+.m-terminal .tb .t-time{color:#808080;font-size:7px;margin-top:2px}
+
+/* ── 验证结果 ── */
+.m-verify-res{background:var(--card);border-radius:var(--bdr);padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.m-verify-res .v-hd{font-size:13px;font-weight:600;margin-bottom:8px}
+.m-verify-res .v-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12px}
+.m-verify-res .v-row .vl{color:var(--t2)}
+.m-verify-res .v-err{background:#fef0f0;color:var(--d);padding:6px 8px;border-radius:4px;font-size:11px;margin-top:6px;word-break:break-all}
+
+/* ── 普通日志列表 ── */
+.m-log-item{padding:8px 0;border-bottom:1px solid #f0f0f0;font-size:11px}
+.m-log-item:last-child{border-bottom:none}
+.m-log-item .li-hd{display:flex;justify-content:space-between;align-items:center}
+.m-log-item .li-id{color:var(--t3);font-weight:500}
+.m-log-item .li-act{font-weight:500}
+.m-log-item .li-dt{color:var(--t3);font-size:10px;margin-top:2px}
+.m-log-item .li-hash{color:var(--t3);font-size:9px;margin-top:1px;word-break:break-all}
+
+.m-btn{display:block;width:100%;padding:10px;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;text-align:center;transition:opacity .15s}
+.m-btn:active{opacity:.8}
+.m-btn:disabled{opacity:.5;cursor:not-allowed}
+.m-btn-p{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.m-btn-s{background:var(--s);color:#fff}
+.m-tag{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.m-tag-ok{background:#f0f9eb;color:var(--s)}
+.m-tag-ng{background:#fef0f0;color:var(--d)}
+
+.m-loading{text-align:center;padding:20px;color:var(--t3);font-size:12px}
+.m-empty{text-align:center;padding:20px;color:var(--t3);font-size:12px}
+
+/* ── 弹窗 ── */
+.m-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.m-modal{background:#fff;border-radius:12px;max-width:360px;width:100%;max-height:70vh;overflow:hidden;display:flex;flex-direction:column;animation:mFadeIn .18s ease}
+@keyframes mFadeIn{from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
+.m-modal-h{padding:12px 14px 10px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f0;flex-shrink:0}
+.m-modal-close{font-size:20px;cursor:pointer;color:var(--t3);width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.m-modal-close:active{background:#f0f2f5}
+.m-modal-b{padding:10px 14px 14px;overflow-y:auto;flex:1}
+
+/* ── TabBar ── */
+.m-tabbar{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;height:50px;background:#fff;display:flex;box-shadow:0 -1px 4px rgba(0,0,0,.06);z-index:100;border-top:1px solid #f0f0f0}
+.m-tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;color:var(--t3);font-size:9px;transition:color .15s}
+.m-tabbar a.on{color:var(--p)}
+.m-tabbar a span{font-size:20px;margin-bottom:1px}
+</style>
+</head>
+<body class="iphone-host">
+<%- include('partials/iphone_frame_start') %>
+
+<div class="m-shell">
+
+<div class="m-topbar">
+<div class="tl">🔒 司法留痕</div>
+</div>
+
+<div class="m-content">
+
+<!-- 哈希链（最近5条，终端风格） -->
+<div class="m-card">
+<div class="m-card-h"><span>📜 哈希链（最近）</span><span id="chainCount" class="m-tag m-tag-info" style="font-size:9px">0</span></div>
+<div class="m-terminal" id="chainContainer">
+<div class="m-loading" style="color:#808080">加载中...</div>
+</div>
+</div>
+
+<!-- 验证按钮 -->
+<button class="m-btn m-btn-s" id="btnVerify" onclick="verifyChain()">🔍 验证哈希链完整性</button>
+
+<!-- 验证结果区 -->
+<div id="verifyResultArea" style="display:none"></div>
+
+<!-- 全部日志列表 -->
+<div class="m-card">
+<div class="m-card-h"><span>📋 全部操作日志</span><span id="logTotal" style="font-size:11px;font-weight:400;color:var(--t3)"></span></div>
+<div id="logList"><div class="m-loading">加载中...</div></div>
+</div>
+
+</div>
+</div>
+
+
+<script>
+// ── 加载日志数据 ──
+function loadLogs(){
+  fetch('/api/operation-logs',{credentials:'include'})
+    .then(function(r){if(!r.ok)throw new Error('请求失败');return r.json()})
+    .then(function(d){
+      var logs=d.data||[];
+      var total=d.total||logs.length;
+      document.getElementById('logTotal').textContent='共 '+total+' 条';
+
+      // 哈希链（最近5条）
+      var chainContainer=document.getElementById('chainContainer');
+      var recent5=logs.slice(0,5);
+      document.getElementById('chainCount').textContent=recent5.length+'条';
+
+      if(recent5.length===0){
+        chainContainer.innerHTML='<div style="color:#808080;text-align:center;padding:10px">暂无操作记录</div>';
+      }else{
+        chainContainer.innerHTML=recent5.map(function(l){
+          return '<div class="tb">'+
+            '<div><span class="t-id">#'+l.id+'</span><span class="t-act">'+escHtml(l.action)+'</span></div>'+
+            '<div class="t-user">'+(l.user_email||'system')+'</div>'+
+            '<div class="t-info"><span class="t-arrow">← prev:</span> <span class="t-prev">'+(l.prev_hash?l.prev_hash.substring(0,12)+'…':'Genesis')+'</span></div>'+
+            '<div class="t-info"><span class="t-arrow">→ hash:</span> <span class="t-hash">'+(l.hash?l.hash.substring(0,20)+'…':'')+'</span></div>'+
+            '<div class="t-time">'+(l.timestamp||'').substring(0,19)+'</div>'+
+          '</div>';
+        }).join('');
+      }
+
+      // 全部日志
+      var logList=document.getElementById('logList');
+      if(logs.length===0){
+        logList.innerHTML='<div class="m-empty">暂无操作日志</div>';
+      }else{
+        logList.innerHTML=logs.map(function(l){
+          var t=l.timestamp||'';
+          return '<div class="m-log-item">'+
+            '<div class="li-hd"><span class="li-id">#'+l.id+'</span><span class="li-act">'+escHtml(l.action)+'</span></div>'+
+            '<div class="li-dt">'+(l.user_email||'system')+' · '+(t.substring(0,19)||'')+'</div>'+
+            '<div class="li-hash">← '+(l.prev_hash?l.prev_hash.substring(0,16)+'…':'Genesis')+' → '+(l.hash?l.hash.substring(0,24)+'…':'')+'</div>'+
+          '</div>';
+        }).join('');
+      }
+    })
+    .catch(function(e){
+      document.getElementById('chainContainer').innerHTML='<div style="color:#e94560;text-align:center;padding:10px">加载失败</div>';
+      document.getElementById('logList').innerHTML='<div class="m-loading" style="color:var(--d)">加载失败：'+e.message+'</div>';
+    });
+}
+
+function escHtml(s){
+  if(!s)return'';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── 验证哈希链 ──
+function verifyChain(){
+  var btn=document.getElementById('btnVerify');
+  btn.disabled=true;
+  btn.textContent='⏳ 验证中...';
+
+  fetch('/api/operation-logs/verify',{credentials:'include',
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    credentials:'include',
+    body:'{}'
+  })
+  .then(function(r){if(!r.ok)throw new Error('请求失败');return r.json()})
+  .then(function(d){
+    var area=document.getElementById('verifyResultArea');
+    var ok=d.isValid;
+    area.style.display='block';
+    area.innerHTML=
+      '<div class="m-verify-res">'+
+        '<div class="v-hd">'+(ok?'✅ 验证通过':'❌ 验证失败')+'</div>'+
+        '<div class="v-row"><span class="vl">总区块</span><span>'+(d.totalBlocks||0)+'</span></div>'+
+        '<div class="v-row"><span class="vl">状态</span><span class="m-tag '+(ok?'m-tag-ok':'m-tag-ng')+'">'+(ok?'完整':'异常')+'</span></div>'+
+        (d.errors&&d.errors.length>0?'<div class="v-err">'+d.errors.join('<br>')+'</div>':'')+
+      '</div>';
+    area.scrollIntoView({behavior:'smooth',block:'center'});
+  })
+  .catch(function(e){
+    alert('验证失败：'+e.message);
+  })
+  .finally(function(){
+    btn.disabled=false;
+    btn.textContent='🔍 验证哈希链完整性';
+  });
+}
+
+// ── 初始加载 ──
+loadLogs();
+</script>
+
+<%- include('partials/iphone_frame_end') %>
+</body>
+</html>
