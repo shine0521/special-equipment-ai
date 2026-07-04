@@ -1,0 +1,266 @@
+<%- include('partials/head') %>
+<%- include('partials/topbar') %>
+<div class="shell">
+<%- include('partials/sidebar', {user: user}) %>
+<main class="main">
+  <div class="content">
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t">📋 法规模板管理</div>
+        <% if (user && user.role === 'admin') { %>
+        <button class="btn btn-p" onclick="showCreateModal()">+ 新建模板</button>
+        <% } %>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:50px">ID</th>
+            <th style="width:100px">编码</th>
+            <th>名称</th>
+            <th style="width:80px">分类</th>
+            <th style="width:60px">版本</th>
+            <th style="width:80px">状态</th>
+            <th style="width:80px">使用次数</th>
+            <th style="width:120px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="8" style="text-align:center;padding:40px;color:#909399;">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- 编辑模板弹窗 -->
+<div class="modal-overlay" id="editModal" style="display:none">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-h">
+      <span class="mht" id="modalTitle">编辑模板</span>
+      <button class="mc" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-b">
+      <input type="hidden" id="editId">
+      <div class="row">
+        <div class="col">
+          <div class="form-row">
+            <label>模板编码 <span class="req">*</span></label>
+            <input class="inp" id="editCode" type="text" placeholder="如: TSG-E01">
+          </div>
+        </div>
+        <div class="col">
+          <div class="form-row">
+            <label>版本</label>
+            <input class="inp" id="editVersion" type="text" placeholder="如: 1.0">
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>模板名称 <span class="req">*</span></label>
+        <input class="inp" id="editName" type="text" placeholder="请输入模板名称">
+      </div>
+      <div class="form-row">
+        <label>分类</label>
+        <select class="inp" id="editCategory">
+          <option value="曳引电梯">曳引电梯</option>
+          <option value="液压电梯">液压电梯</option>
+          <option value="自动扶梯">自动扶梯</option>
+          <option value="自动人行道">自动人行道</option>
+          <option value="杂物电梯">杂物电梯</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>描述</label>
+        <textarea class="txta" id="editDesc" rows="2" placeholder="模板描述（可选）"></textarea>
+      </div>
+      <div class="form-row">
+        <label>状态</label>
+        <select class="inp" id="editStatus">
+          <option value="draft">草稿</option>
+          <option value="published">已发布</option>
+          <option value="archived">已归档</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>字段定义 <button class="btn btn-o" style="padding:2px 8px;font-size:11px;margin-left:8px" onclick="addField()">+ 添加字段</button></label>
+        <div id="fieldsContainer">
+          <div style="color:#909399;font-size:12px">暂无字段，点击上方按钮添加</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-o" onclick="closeModal()">取消</button>
+      <button class="btn btn-p" onclick="saveTemplate()">💾 保存模板</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var editFields=[];
+
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  function loadTemplates(){
+    var tbody=document.getElementById('tableBody');
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:#909399;">加载中...</td></tr>';
+    fetch('/api/templates', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var data=d.data||[];
+      if(data.length===0){
+        tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:#909399;">暂无模板</td></tr>';
+        return;
+      }
+      tbody.innerHTML=data.map(function(t){
+        var stCls=t.status==='published'?'tag-published':t.status==='archived'?'tag-archived':'tag-draft';
+        var stTxt=t.status==='published'?'已发布':t.status==='archived'?'已归档':'草稿';
+        return '<tr>'+
+               '<td style="color:#409eff">#'+t.id+'</td>'+
+               '<td><code style="font-size:11px">'+esc(t.code||'')+'</code></td>'+
+               '<td><strong>'+esc(t.name||'')+'</strong></td>'+
+               '<td><span class="tag tag-info">'+esc(t.category||'')+'</span></td>'+
+               '<td style="color:#909399;font-size:12px">v'+esc(t.version||'1.0')+'</td>'+
+               '<td><span class="tag '+stCls+'">'+stTxt+'</span></td>'+
+               '<td style="color:#909399;font-size:12px;text-align:center">'+t.usage_count+'</td>'+
+               '<td><div class="gap">'+
+               <% if (user && user.role === 'admin') { %>
+               '<button class="btn btn-o" style="padding:3px 8px;font-size:11px" onclick="editTemplate('+t.id+')">编辑</button>'+
+               '<button class="btn btn-o" style="padding:3px 8px;font-size:11px" onclick="deleteTemplate('+t.id+')">删除</button>'+
+               <% } else { %>
+               '<button class="btn btn-o" style="padding:3px 8px;font-size:11px" onclick="viewTemplate('+t.id+')">查看</button>'+
+               <% } %>
+               '</div></td></tr>';
+      }).join('');
+    }).catch(function(){
+      tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:#f56c6c;">加载失败</td></tr>';
+    });
+  }
+
+  function showCreateModal(){
+    editFields=[];
+    document.getElementById('modalTitle').textContent='新建模板';
+    document.getElementById('editId').value='';
+    document.getElementById('editCode').value='';
+    document.getElementById('editName').value='';
+    document.getElementById('editVersion').value='1.0';
+    document.getElementById('editCategory').value='曳引电梯';
+    document.getElementById('editDesc').value='';
+    document.getElementById('editStatus').value='draft';
+    renderFields();
+    document.getElementById('editModal').style.display='flex';
+  }
+
+  window.viewTemplate=function(id){
+    fetch('/api/templates/'+id, {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var fields=d.fields||[];
+      var fieldsHtml=fields.length>0?fields.map(function(f){
+        return '<div class="info-item"><span class="lb">'+esc(f.field_name)+'：</span><span>'+esc(f.field_label||'')+' ('+esc(f.field_type)+')</span></div>';
+      }).join(''):'<div style="color:#909399">无字段定义</div>';
+      var body=document.getElementById('modalBody')||{};
+      var modal=document.createElement('div');
+      modal.className='modal-overlay';
+      modal.style.display='flex';
+      modal.innerHTML='<div class="modal"><div class="modal-h"><span class="mht">模板详情</span><button class="mc" onclick="this.closest(\'.modal-overlay\').remove()">✕</button></div>'+
+        '<div class="modal-b"><div class="info-grid mb">'+
+        '<div class="info-item"><span class="lb">编码：</span>'+esc(d.code||'')+'</div>'+
+        '<div class="info-item"><span class="lb">名称：</span>'+esc(d.name||'')+'</div>'+
+        '<div class="info-item"><span class="lb">分类：</span>'+esc(d.category||'')+'</div>'+
+        '<div class="info-item"><span class="lb">版本：</span>v'+esc(d.version||'1.0')+'</div>'+
+        '<div class="info-item"><span class="lb">状态：</span>'+esc(d.status||'')+'</div>'+
+        '<div class="info-item"><span class="lb">使用次数：</span>'+d.usage_count+'</div></div>'+
+        '<div class="card-t mb">字段定义</div>'+fieldsHtml+'</div></div>';
+      document.body.appendChild(modal);
+      modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
+    });
+  };
+
+  window.editTemplate=function(id){
+    fetch('/api/templates/'+id, {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      editFields=d.fields||[];
+      document.getElementById('modalTitle').textContent='编辑模板';
+      document.getElementById('editId').value=d.id;
+      document.getElementById('editCode').value=d.code||'';
+      document.getElementById('editName').value=d.name||'';
+      document.getElementById('editVersion').value=d.version||'1.0';
+      document.getElementById('editCategory').value=d.category||'曳引电梯';
+      document.getElementById('editDesc').value=d.description||'';
+      document.getElementById('editStatus').value=d.status||'draft';
+      renderFields();
+      document.getElementById('editModal').style.display='flex';
+    });
+  };
+
+  window.addField=function(){
+    editFields.push({field_name:'',field_label:'',field_type:'text',required:false,options:''});
+    renderFields();
+  };
+
+  function renderFields(){
+    var container=document.getElementById('fieldsContainer');
+    if(editFields.length===0){
+      container.innerHTML='<div style="color:#909399;font-size:12px">暂无字段，点击上方按钮添加</div>';
+      return;
+    }
+    container.innerHTML=editFields.map(function(f,i){
+      return '<div class="field-row">'+
+             '<input type="text" placeholder="字段名" value="'+esc(f.field_name)+'" onchange="updateField('+i+',\'field_name\',this.value)">'+
+             '<input type="text" placeholder="显示标签" value="'+esc(f.field_label)+'" onchange="updateField('+i+',\'field_label\',this.value)">'+
+             '<select onchange="updateField('+i+',\'field_type\',this.value)"><option value="text"'+(f.field_type==='text'?' selected':'')+'>文本</option><option value="number"'+(f.field_type==='number'?' selected':'')+'>数字</option><option value="date"'+(f.field_type==='date'?' selected':'')+'>日期</option><option value="select"'+(f.field_type==='select'?' selected':'')+'>下拉</option><option value="textarea"'+(f.field_type==='textarea'?' selected':'')+'>多行文本</option></select>'+
+             '<select onchange="updateField('+i+',\'required\',this.value===\'1\'?'+'true:'+'false)"><option value="0"'+(f.required?'':' selected')+'>非必填</option><option value="1"'+(f.required?' selected':'')+'>必填</option></select>'+
+             '<span class="rm" onclick="removeField('+i+')" title="删除">✕</span></div>'+
+             (f.field_type==='select'?'<input type="text" class="inp" style="height:28px;margin-bottom:6px" placeholder="选项逗号分隔，如: 正常,异常,严重" value="'+esc(f.options||'')+'" onchange="updateField('+i+',\'options\',this.value)">':'');
+    }).join('');
+  }
+
+  window.updateField=function(idx,key,val){
+    editFields[idx][key]=val;
+  };
+
+  window.removeField=function(idx){
+    editFields.splice(idx,1);
+    renderFields();
+  };
+
+  window.saveTemplate=function(){
+    var id=document.getElementById('editId').value;
+    var code=document.getElementById('editCode').value.trim();
+    var name=document.getElementById('editName').value.trim();
+    var version=document.getElementById('editVersion').value.trim()||'1.0';
+    var category=document.getElementById('editCategory').value;
+    var desc=document.getElementById('editDesc').value.trim();
+    var status=document.getElementById('editStatus').value;
+
+    if(!code||!name){alert('编码和名称不能为空');return;}
+
+    var validFields=editFields.filter(function(f){return f.field_name&&f.field_label;});
+    var payload={code:code,name:name,version:version,category:category,description:desc,status:status,fields:validFields};
+    var method=id?'PUT':'POST';
+    var url=id?'/api/templates/'+id:'/api/templates';
+
+    fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      if(d.error){alert(d.error);return;}
+      alert(d.message||'保存成功');
+      closeModal();
+      loadTemplates();
+    }).catch(function(){alert('保存失败');});
+  };
+
+  window.deleteTemplate=function(id){
+    if(!confirm('确定要删除该模板吗？'))return;
+    fetch('/api/templates/'+id,{method:'DELETE'}, {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      alert(d.message||'删除成功');
+      loadTemplates();
+    }).catch(function(){alert('删除失败');});
+  };
+
+  window.closeModal=function(){
+    document.getElementById('editModal').style.display='none';
+    editFields=[];
+  };
+  document.getElementById('editModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+  loadTemplates();
+})();
+</script>
+<%- include('partials/foot') %>
