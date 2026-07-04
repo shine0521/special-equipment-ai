@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
+<title>首页 · 特种设备AI</title>
+<style>
+:root{--p:#409eff;--s:#67c23a;--d:#f56c6c;--w:#e6a23c;--bg:#f5f7fa;--card:#fff;--tx:#303133;--t2:#606266;--t3:#909399;--t4:#c0c4cc;--bd:#dcdfe6;--bdr:8px}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font:13px/1.5 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);margin:0 auto;min-height:100vh;max-width:480px}
+a{text-decoration:none;color:inherit}
+
+/* ── 登录页 ── */
+.m-login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:16px}
+.m-login-box{width:100%;max-width:320px;background:#fff;border-radius:12px;padding:28px 20px 20px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.m-login-ico{text-align:center;font-size:40px;margin-bottom:6px}
+.m-login-box h2{text-align:center;font-size:16px;font-weight:700;margin-bottom:2px}
+.m-login-sub{text-align:center;color:var(--t3);font-size:11px;margin-bottom:20px}
+.m-login-box input{width:100%;height:40px;border:1px solid var(--bd);border-radius:6px;padding:0 12px;font-size:13px;margin-bottom:10px;outline:none;transition:border-color .2s}
+.m-login-box input:focus{border-color:var(--p)}
+.m-login-box .btn-login{width:100%;height:40px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.m-login-box .btn-login:active{opacity:.85}
+.m-login-err{color:var(--d);font-size:12px;text-align:center;margin-top:6px}
+.m-login-tip{text-align:center;color:var(--t4);font-size:10px;margin-top:10px}
+
+/* ── 应用外壳 ── */
+.m-shell{min-height:100vh;padding-bottom:56px}
+.m-topbar{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.m-topbar .tl{font-size:15px;font-weight:600}
+.m-topbar .tr{font-size:11px;opacity:.88}
+.m-content{padding:10px 10px 4px}
+
+/* ── 统计卡片 ── */
+.m-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.m-stat{background:var(--card);border-radius:var(--bdr);padding:12px 8px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.m-stat .sv{font-size:22px;font-weight:700;color:var(--p);line-height:1.2}
+.m-stat .sl{font-size:10px;color:var(--t3);margin-top:2px}
+.m-stat .sv.green{color:var(--s)}
+.m-stat .sv.orange{color:var(--w)}
+.m-stat .sv.red{color:var(--d)}
+
+/* ── 卡片 ── */
+.m-card{background:var(--card);border-radius:var(--bdr);padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.m-card-h{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.m-card-h .more{font-size:11px;color:var(--p);font-weight:400;cursor:pointer}
+
+/* ── 快捷按钮 ── */
+.m-actions{display:flex;gap:8px;margin-bottom:10px}
+.m-action-btn{flex:1;background:var(--card);border-radius:var(--bdr);padding:10px 4px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04);font-size:12px;cursor:pointer;color:var(--tx);transition:background .15s}
+.m-action-btn:active{background:#f0f2f5}
+.m-action-btn .ico{font-size:22px;display:block;margin-bottom:2px}
+
+/* ── 表格 ── */
+.m-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.m-tbl th{text-align:left;padding:6px 0;color:var(--t3);font-weight:500;border-bottom:1px solid var(--bd)}
+.m-tbl td{padding:7px 0;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.m-tbl tr:last-child td{border-bottom:none}
+
+/* ── 标签 ── */
+.m-tag{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600;white-space:nowrap}
+.m-tag-ok{background:#f0f9eb;color:var(--s)}
+.m-tag-ng{background:#fef0f0;color:var(--d)}
+.m-tag-mb{background:#fdf6ec;color:var(--w)}
+.m-tag-info{background:#ecf5ff;color:var(--p)}
+
+/* ── 按钮 ── */
+.m-btn{display:block;width:100%;padding:10px;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;text-align:center;transition:opacity .15s}
+.m-btn:active{opacity:.8}
+.m-btn:disabled{opacity:.5;cursor:not-allowed}
+.m-btn-p{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.m-btn-o{background:#fff;color:var(--tx);border:1px solid var(--bd)}
+.m-btn-d{background:var(--d);color:#fff}
+
+.m-inp{width:100%;height:36px;border:1px solid var(--bd);border-radius:5px;padding:0 10px;font-size:13px;margin-bottom:8px;outline:none;transition:border-color .2s}
+.m-inp:focus{border-color:var(--p)}
+
+/* ── TabBar ── */
+.m-tabbar{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;height:50px;background:#fff;display:flex;box-shadow:0 -1px 4px rgba(0,0,0,.06);z-index:100;border-top:1px solid #f0f0f0}
+.m-tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;color:var(--t3);font-size:9px;transition:color .15s}
+.m-tabbar a.on{color:var(--p)}
+.m-tabbar a span{font-size:20px;margin-bottom:1px}
+
+/* ── 加载占位 ── */
+.m-loading{text-align:center;padding:20px;color:var(--t3);font-size:12px}
+.m-empty{text-align:center;padding:20px 10px;color:var(--t3);font-size:12px}
+
+/* ── 弹窗 ── */
+.m-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.m-modal{background:#fff;border-radius:10px;max-width:360px;width:100%;max-height:80vh;overflow-y:auto;animation:mFadeIn .2s ease}
+@keyframes mFadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.m-modal-h{padding:12px 14px 8px;font-size:14px;font-weight:600;border-bottom:1px solid #f0f0f0}
+.m-modal-b{padding:10px 14px 14px}
+.m-modal-close{float:right;font-size:18px;cursor:pointer;color:var(--t3);padding:0 4px}
+
+/* ── Toast ── */
+.m-toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.72);color:#fff;padding:10px 16px;border-radius:6px;font-size:12px;z-index:300;max-width:260px;text-align:center;animation:mFadeIn .15s ease}
+</style>
+</head>
+<body class="iphone-host">
+<%- include('partials/iphone_frame_start') %>
+
+<!-- ─── 未登录 ─── -->
+<% if (!user) { %>
+<div class="m-login">
+<div class="m-login-box">
+<div class="m-login-ico">🤖</div>
+<h2>特种设备AI系统</h2>
+<div class="m-login-sub">电梯安全管理 · 移动端</div>
+<form method="POST" action="/login">
+<input type="email" name="email" placeholder="邮箱" value="admin@demo.com" required>
+<input type="password" name="password" placeholder="密码" value="123456" required>
+<button type="submit" class="btn-login">登 录</button>
+</form>
+<% if (error) { %><div class="m-login-err"><%= error %></div><% } %>
+<div class="m-login-tip">admin@demo.com · 123456</div>
+</div>
+</div>
+
+<% } else { %>
+
+<!-- ─── 已登录 ─── -->
+<div class="m-shell">
+<div class="m-topbar">
+<div class="tl">📊 仪表盘</div>
+<div class="tr"><span id="clock"></span></div>
+</div>
+
+<div class="m-content">
+<!-- 统计卡片 -->
+<div class="m-stats" id="statsGrid">
+<div class="m-stat"><div class="sv">-</div><div class="sl">今日判别</div></div>
+<div class="m-stat"><div class="sv">-</div><div class="sl">待审核</div></div>
+<div class="m-stat"><div class="sv">-</div><div class="sl">活跃模板</div></div>
+<div class="m-stat"><div class="sv">-</div><div class="sl">合规率</div></div>
+</div>
+
+<!-- 快捷操作 -->
+<div class="m-actions">
+<a href="/mobile/discriminate" class="m-action-btn"><span class="ico">⚖️</span>新建判别</a>
+<a href="/mobile/history" class="m-action-btn"><span class="ico">📋</span>判别历史</a>
+<a href="/mobile/logs" class="m-action-btn"><span class="ico">🔒</span>操作留痕</a>
+</div>
+
+<!-- 最近判别 -->
+<div class="m-card">
+<div class="m-card-h"><span>📋 最近判别</span><a href="/mobile/history" class="more">查看全部 →</a></div>
+<table class="m-tbl" id="recentTable">
+<thead><tr><th style="width:30px">ID</th><th>模板</th><th style="width:52px">结果</th></tr></thead>
+<tbody id="recentBody"><tr><td colspan="3" class="m-loading">加载中...</td></tr></tbody>
+</table>
+</div>
+</div>
+</div>
+
+
+<% } %>
+
+<script>
+// ── 实时时钟 ──
+(function tickClock(){
+  var c=document.getElementById('clock');
+  if(c){
+    var d=new Date();
+    var h=d.getHours().toString().padStart(2,'0');
+    var m=d.getMinutes().toString().padStart(2,'0');
+    var s=d.getSeconds().toString().padStart(2,'0');
+    var wd=['日','一','二','三','四','五','六'][d.getDay()];
+    c.textContent=(h+':'+m+':'+s);
+  }
+  setTimeout(tickClock,1000);
+})();
+
+// ── 加载仪表盘数据 ──
+(function loadDashboard(){
+  fetch('/api/dashboard/stats',{credentials:'include'})
+    .then(function(r){if(!r.ok)throw Error('网络错误');return r.json()})
+    .then(function(d){
+      var grid=document.getElementById('statsGrid');
+      var cells=grid.querySelectorAll('.sv');
+      if(cells[0])cells[0].textContent=d.todayDiscriminations||0;
+      if(cells[1]){cells[1].textContent=d.pendingAudits||0;cells[1].className='sv'+(d.pendingAudits>0?' orange':'')}
+      if(cells[2])cells[2].textContent=d.activeTemplates||0;
+      if(cells[3]){var r=d.compliantRate||'0';cells[3].textContent=r+(String(r).indexOf('%')>=0?'':'%');cells[3].className='sv green'}
+    })
+    .catch(function(){/*静默失败，保持默认值*/});
+
+  fetch('/api/discrimination-records?page=1',{credentials:'include'})
+    .then(function(r){if(!r.ok)throw Error('网络错误');return r.json()})
+    .then(function(d){
+      var tbody=document.getElementById('recentBody');
+      if(!d.data||d.data.length===0){
+        tbody.innerHTML='<tr><td colspan="3" class="m-empty">暂无判别记录</td></tr>';
+        return;
+      }
+      tbody.innerHTML=d.data.slice(0,5).map(function(r){
+        var cls=r.final_result==='合规'?'ok':r.final_result==='不合规'?'ng':'mb';
+        var name=r.template_name||r.templateName||'-';
+        if(name.length>10)name=name.substring(0,10)+'…';
+        return '<tr><td style="color:var(--t3)">'+(r.id||'-')+'</td>'+
+          '<td>'+name+'</td>'+
+          '<td><span class="m-tag m-tag-'+cls+'">'+(r.final_result||'-')+'</span></td></tr>';
+      }).join('');
+    })
+    .catch(function(){
+      document.getElementById('recentBody').innerHTML='<tr><td colspan="3" class="m-loading" style="color:var(--d)">加载失败</td></tr>';
+    });
+})();
+</script>
+
+<%- include('partials/iphone_frame_end') %>
+</body>
+</html>
