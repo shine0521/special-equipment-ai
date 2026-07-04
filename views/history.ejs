@@ -1,0 +1,255 @@
+<%- include('partials/head') %>
+<%- include('partials/topbar') %>
+<div class="shell">
+<%- include('partials/sidebar', {user: user}) %>
+<main class="main">
+  <div class="content">
+    <div class="card">
+      <div class="card-h"><div class="card-t">📜 判别历史记录</div></div>
+      <div class="row mb">
+        <div class="col">
+          <input class="inp" id="searchInput" type="text" placeholder="🔍 搜索模板名称..." oninput="debounceSearch()">
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <select class="inp" id="resultFilter" onchange="doSearch()" style="width:130px">
+            <option value="">全部结果</option>
+            <option value="合规">合规</option>
+            <option value="不合规">不合规</option>
+            <option value="待人工">待人工</option>
+          </select>
+          <button class="btn btn-o" onclick="doSearch()">🔍 搜索</button>
+          <button class="btn btn-o" onclick="resetSearch()">重置</button>
+        </div>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:70px">ID</th>
+            <th>模板名称</th>
+            <th style="width:90px">结果</th>
+            <th>提交人</th>
+            <th style="width:160px">时间</th>
+            <th style="width:80px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:#909399;">加载中...</td></tr>
+        </tbody>
+      </table>
+      <div id="pagination" class="pg"></div>
+      <div id="totalInfo" style="font-size:12px;color:#909399;margin-top:8px;text-align:right"></div>
+    </div>
+  </div>
+</main>
+</div>
+
+<div class="modal-overlay" id="detailModal" style="display:none">
+  <div class="modal">
+    <div class="modal-h">
+      <span class="mht">判别详情</span>
+      <button class="mc" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-b" id="modalBody">加载中...</div>
+    <% if (user && (user.role === 'auditor' || user.role === 'admin')) { %>
+    <div class="modal-f" id="auditActions" style="display:none">
+      <button class="btn btn-s" onclick="auditAction('approve')">✅ 批准</button>
+      <button class="btn btn-d" onclick="auditAction('reject')">❌ 驳回</button>
+    </div>
+    <div class="modal-f" id="auditCommentArea" style="display:none">
+      <textarea class="txta" id="auditComment" rows="2" placeholder="请输入审核意见..." style="margin-bottom:8px"></textarea>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+(function(){
+  var currentPage=1;
+  var currentRecordId=null;
+  var searchTimer=null;
+
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  function debounceSearch(){
+    clearTimeout(searchTimer);
+    searchTimer=setTimeout(doSearch,400);
+  }
+
+  function doSearch(){
+    currentPage=1;
+    loadRecords();
+  }
+
+  function resetSearch(){
+    document.getElementById('searchInput').value='';
+    document.getElementById('resultFilter').value='';
+    currentPage=1;
+    loadRecords();
+  }
+
+  function loadRecords(){
+    var search=encodeURIComponent(document.getElementById('searchInput').value||'');
+    var result=document.getElementById('resultFilter').value||'';
+    var tbody=document.getElementById('tableBody');
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#909399;">加载中...</td></tr>';
+
+    fetch('/api/discrimination-records?page='+currentPage+'&search='+search+'&result='+result, {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var data=d.data||[];
+      if(data.length===0){
+        tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#909399;">暂无记录</td></tr>';
+        document.getElementById('totalInfo').textContent='';
+        document.getElementById('pagination').innerHTML='';
+        return;
+      }
+      tbody.innerHTML=data.map(function(r){
+        var tag=r.final_result==='合规'?'<span class="tag tag-ok">合规</span>':
+                r.final_result==='不合规'?'<span class="tag tag-ng">不合规</span>':
+                r.final_result==='待人工'?'<span class="tag tag-mb">待人工</span>':'<span class="tag tag-mb">'+esc(r.final_result||'待人工')+'</span>';
+        var dt=new Date(r.created_at);
+        var ts=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())+' '+pad(dt.getHours())+':'+pad(dt.getMinutes());
+        return '<tr class="clickable" onclick="showDetail('+r.id+')">'+
+               '<td style="color:#409eff">#'+r.id+'</td>'+
+               '<td>'+esc(r.template_name||'')+'</td>'+
+               '<td>'+tag+'</td>'+
+               '<td style="color:#909399;font-size:12px">'+esc(r.user_email||'')+'</td>'+
+               '<td style="color:#909399;font-size:12px">'+ts+'</td>'+
+               '<td><button class="btn btn-o" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();showDetail('+r.id+')">查看</button></td>'+
+               '</tr>';
+      }).join('');
+
+      document.getElementById('totalInfo').textContent='共 '+d.total+' 条记录，第 '+d.page+' / '+d.totalPages+' 页';
+      renderPagination(d.page,d.totalPages);
+    }).catch(function(){
+      tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#f56c6c;">加载失败</td></tr>';
+    });
+  }
+
+  function renderPagination(page,totalPages){
+    var pg=document.getElementById('pagination');
+    if(totalPages<=1){
+      pg.innerHTML='';
+      return;
+    }
+    var items=[];
+    if(page>1) items.push('<a onclick="goPage('+(page-1)+')">‹ 上一页</a>');
+    var start=Math.max(1,page-2);
+    var end=Math.min(totalPages,page+2);
+    if(start>1){items.push('<a onclick="goPage(1)">1</a>');if(start>2)items.push('<span>...</span>');}
+    for(var i=start;i<=end;i++){
+      items.push(i===page?'<span class="on">'+i+'</span>':'<a onclick="goPage('+i+')">'+i+'</a>');
+    }
+    if(end<totalPages){if(end<totalPages-1)items.push('<span>...</span>');items.push('<a onclick="goPage('+totalPages+')">'+totalPages+'</a>');}
+    if(page<totalPages) items.push('<a onclick="goPage('+(page+1)+')">下一页 ›</a>');
+    pg.innerHTML=items.join('');
+  }
+
+  function goPage(n){currentPage=n;loadRecords();window.scrollTo({top:0,behavior:'smooth'});}
+
+  function pad(n){return String(n).padStart(2,'0');}
+
+  function showDetail(id){
+    if(!id){console.error('showDetail: id is',id);return;}
+    currentRecordId=id;
+    var modal=document.getElementById('detailModal');
+    var modalBody=document.getElementById('modalBody');
+    if(!modal||!modalBody){console.error('Modal elements not found');return;}
+    modalBody.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
+    modal.style.display='flex';
+    var auditActions=document.getElementById('auditActions');
+    var auditCommentArea=document.getElementById('auditCommentArea');
+    if(auditActions)auditActions.style.display='none';
+    if(auditCommentArea)auditCommentArea.style.display='none';
+
+    fetch('/api/discrimination-records/'+id, {credentials:'include'}).then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }).then(function(d){
+      var rec=d.record||{};
+      if(!rec.id) throw new Error('无record数据');
+      var tag=rec.final_result==='合规'?'<span class="tag tag-ok">合规</span>':
+              rec.final_result==='不合规'?'<span class="tag tag-ng">不合规</span>':
+              rec.final_result==='待人工'?'<span class="tag tag-mb">待人工</span>':'<span class="tag tag-mb">'+esc(rec.final_result||'待人工')+'</span>';
+      var dt=rec.created_at?new Date(rec.created_at):new Date();
+      var ts=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())+' '+pad(dt.getHours())+':'+pad(dt.getMinutes());
+
+      var formData=rec.form_data||{};
+      var formHtml=Object.keys(formData).length>0?'<div class="card-t mb">📝 填写的字段</div><div class="info-grid mb">'+Object.keys(formData).map(function(k){
+        return '<div class="info-item"><span class="lb">'+esc(k)+'：</span><span>'+esc(String(formData[k]||''))+'</span></div>';
+      }).join('')+'</div>':'';
+
+      var rules=rec.rule_results||[];
+      var rulesHtml=rules.map(function(rule){
+        var icon=rule.status==='success'?'✅':rule.status==='error'?'❌':'⚠️';
+        var cls=rule.status==='success'?'ok':rule.status==='error'?'ng':'mb';
+        return '<div class="rule-result '+cls+'"><div class="rr-h"><span style="font-size:18px">'+icon+'</span><span class="rr-n">'+esc(rule.name||'')+'</span></div>'+
+               (rule.result?'<div class="rr-d">结果值: '+esc(rule.result)+'</div>':'')+
+               (rule.description?'<div class="rr-d">'+esc(rule.description)+'</div>':'')+
+               (rule.detail?'<div class="rr-d" style="color:#409eff">'+esc(rule.detail)+'</div>':'')+
+               (rule.formula?'<div class="rr-f">'+esc(rule.formula)+'</div>':'')+
+               (rule.clause?'<div class="rr-c">📖 '+esc(rule.clause)+'</div>':'')+'</div>';
+      }).join('');
+
+      var auditTask=d.auditTask||{};
+      var auditHtml='';
+      if(auditTask&&auditTask.status){
+        auditHtml='<div style="margin-top:14px;padding:10px 14px;background:#f9f9f9;border-radius:6px;font-size:12px">'+
+                  '<strong>审核状态：</strong><span class="tag '+(auditTask.status==='approved'?'tag-ok':auditTask.status==='rejected'?'tag-ng':'tag-mb')+'">'+esc(auditTask.status)+'</span>'+
+                  (auditTask.comment?'<div style="margin-top:6px"><strong>审核意见：</strong>'+esc(auditTask.comment)+'</div>':'')+
+                  '</div>';
+        if(auditTask.status==='pending'){
+          if(auditActions)auditActions.style.display='flex';
+          if(auditCommentArea)auditCommentArea.style.display='block';
+        }
+      }
+
+      document.getElementById('modalBody').innerHTML=
+        '<div class="info-grid mb"><div class="info-item"><span class="lb">ID：</span><span>#'+rec.id+'</span></div>'+
+        '<div class="info-item"><span class="lb">结果：</span>'+tag+'</div>'+
+        '<div class="info-item"><span class="lb">模板：</span><span>'+esc(rec.template_name||'')+'</span></div>'+
+        '<div class="info-item"><span class="lb">提交人：</span><span>'+esc(rec.user_email||'')+'</span></div>'+
+        '<div class="info-item"><span class="lb">时间：</span><span>'+ts+'</span></div></div>'+
+        (rec.conclusion?'<div style="padding:12px;background:#f9f9f9;border-radius:6px;font-size:13px;margin-bottom:14px">'+esc(rec.conclusion)+'</div>':'')+
+        formHtml+
+        '<div class="card-t mb">📋 规则执行明细</div>'+
+        (rulesHtml||'<div style="color:#909399">无规则明细</div>')+
+        auditHtml;
+    }).catch(function(err){
+      if(modalBody) modalBody.innerHTML='<div style="color:#f56c6c;text-align:center;padding:30px">加载失败: '+esc(err.message||'未知错误')+'</div>';
+      console.error('详情加载错误:', err);
+      console.error('详情加载错误:', err);
+    });
+  }
+
+  window.showDetail=showDetail;
+
+  window.closeModal=function(){
+    var modal=document.getElementById('detailModal');
+    if(modal)modal.style.display='none';
+    currentRecordId=null;
+  };
+  var modalEl=document.getElementById('detailModal');
+  if(modalEl)modalEl.addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+  window.auditAction=function(action){
+    if(!currentRecordId){alert('请先选择一条记录');return;}
+    var comment=document.getElementById('auditComment');
+    comment=comment?comment.value:'';
+    if(action==='reject'&&!comment.trim()){alert('驳回时必须填写审核意见');return;}
+    fetch('/api/audit-tasks/'+currentRecordId+'/action',{credentials:'include',
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:action,comment:comment})
+    }).then(function(r){return r.json()}).then(function(d){
+      alert(d.message||'操作成功');
+      closeModal();
+      loadRecords();
+    }).catch(function(){alert('操作失败，请重试');});
+  };
+
+  window.goPage=goPage;
+
+  // 初始加载
+  loadRecords();
+})();
+</script>
+<%- include('partials/foot') %>
