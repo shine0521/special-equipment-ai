@@ -1,0 +1,38 @@
+name = "elevator-ai"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+node_compat = false
+
+# Cloudflare Workers AI - 用于本地AI增强（可选）
+# [ai]
+# binding = "AI"
+
+# KV 命名空间 - Session 存储
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "YOUR_KV_NAMESPACE_ID"  # 替换为实际 ID
+
+# D1 数据库绑定
+[[d1_databases]]
+binding = "DB"
+database_name = "elevator-ai-db"
+database_id = "YOUR_D1_DATABASE_ID"  # 替换为实际 ID
+
+[vars]
+ENV = "production"
+VERSION = "4.0.0"
+
+# 安全设置
+[headers]
+# 禁止 iframe 嵌入
+[[headers.values]]
+name = "X-Frame-Options"
+value = "DENY"
+
+[[headers.values]]
+name = "X-Content-Type-Options"
+value = "nosniff"
+
+[[headers.values]]
+name = "Referrer-Policy"
+value = "strict-origin-when-cross-origin"
