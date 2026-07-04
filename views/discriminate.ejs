@@ -1,0 +1,226 @@
+<%- include('partials/head') %>
+<%- include('partials/topbar') %>
+<div class="shell">
+<%- include('partials/sidebar', {user: user}) %>
+<main class="main">
+  <div class="content">
+    <div class="card">
+      <div class="card-h"><div class="card-t">✅ 特种设备电梯合规判别</div></div>
+      <div style="font-size:12px;color:#909399;margin-bottom:16px">输入电梯场景描述，AI自动匹配法规模板并执行合规判别</div>
+
+      <!-- Step 1: 输入场景 -->
+      <div class="form-row">
+        <label>电梯场景描述 <span class="req">*</span></label>
+        <textarea class="txta" id="sceneInput" rows="5" placeholder="请输入电梯场景描述，如：曳引式电梯、额定载重量1000kg、额定速度2.5m/s、层站门数12层/站、使用年限8年、上次检验日期2023-06-15..."></textarea>
+      </div>
+      <div class="gap mb">
+        <button class="btn btn-p" id="btnAnalyze" onclick="analyzeScene()">🔍 AI分析场景</button>
+        <button class="btn btn-o" onclick="fillDemo()">📋 填入示例</button>
+        <button class="btn btn-o" onclick="clearAll()" style="display:none" id="btnClear">🔄 重置</button>
+      </div>
+      <div id="step1Status" style="font-size:12px;color:#909399;margin-bottom:12px"></div>
+    </div>
+
+    <!-- Step 2: 模板信息 + 字段表单 -->
+    <div class="card" id="step2Card" style="display:none">
+      <div class="card-h">
+        <div class="card-t">📌 匹配模板</div>
+        <div class="gap">
+          <span class="tag tag-info" id="tplName">--</span>
+          <span class="tag tag-info" id="tplConf">置信度 --%</span>
+        </div>
+      </div>
+      <div id="fieldsForm"></div>
+      <div style="margin-top:14px">
+        <button class="btn btn-p" id="btnDiscriminate" onclick="submitDiscriminate()">⚡ 提交判别</button>
+      </div>
+      <div id="step2Status" style="font-size:12px;color:#909399;margin-top:10px"></div>
+    </div>
+
+    <!-- Step 3: 判别结果 -->
+    <div class="card" id="step3Card" style="display:none">
+      <div class="card-h"><div class="card-t">📊 判别结果</div></div>
+      <div id="resultArea"></div>
+    </div>
+  </div>
+</main>
+</div>
+
+<div class="modal-overlay" id="detailModal" style="display:none">
+  <div class="modal">
+    <div class="modal-h">
+      <span class="mht">完整判别详情</span>
+      <button class="mc" onclick="document.getElementById('detailModal').style.display='none'">✕</button>
+    </div>
+    <div class="modal-b" id="modalBody">加载中...</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var currentTemplateId=null;
+  var currentFields=[];
+
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  function setLoading(btn,text,loading){
+    if(!btn)return;
+    btn.disabled=loading;
+    btn.textContent=text;
+  }
+
+  window.fillDemo=function(){
+    document.getElementById('sceneInput').value='曳引式电梯，额定载重量1050kg，额定速度2.5m/s，共12层12站12门，使用年限9年，上次定期检验日期2023-06-15，检验机构A类，下次检验日期2024-06-15。曳引轮槽磨损超标，钢丝绳有异常噪声，控制柜有烧灼痕迹，安全钳试验日期2023-01-10。';
+    document.getElementById('sceneInput').dispatchEvent(new Event('input'));
+  };
+
+  window.clearAll=function(){
+    document.getElementById('sceneInput').value='';
+    document.getElementById('step2Card').style.display='none';
+    document.getElementById('step3Card').style.display='none';
+    document.getElementById('btnClear').style.display='none';
+    document.getElementById('step1Status').textContent='';
+    currentTemplateId=null;
+    currentFields=[];
+  };
+
+  window.analyzeScene=function(){
+    var input=document.getElementById('sceneInput').value.trim();
+    var btn=document.getElementById('btnAnalyze');
+    var status=document.getElementById('step1Status');
+
+    if(!input){status.textContent='⚠️ 请输入电梯场景描述';return;}
+    status.textContent='🤖 AI分析中，请稍候...';
+    setLoading(btn,'分析中...',true);
+
+    fetch('/api/ai/classify',{credentials:'include',
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({description:input})
+    }).then(function(r){return r.json()}).then(function(d){
+      setLoading(btn,'🔍 AI分析场景',false);
+      if(d.error){status.textContent='❌ '+d.error;return;}
+      if(!d.templateId){status.textContent='❌ 未匹配到合适模板';return;}
+
+      currentTemplateId=d.templateId;
+      currentFields=d.fields||[];
+      document.getElementById('tplName').textContent=d.templateName||'未知模板';
+      document.getElementById('tplConf').textContent='置信度 '+((d.confidence||0)*100).toFixed(0)+'%';
+
+      renderFieldsForm(d.fields||[]);
+      document.getElementById('step2Card').style.display='block';
+      document.getElementById('btnClear').style.display='inline-flex';
+      document.getElementById('step3Card').style.display='none';
+      status.textContent='✅ 已匹配模板: '+d.templateName+'，请填写下方字段';
+
+      // 滚动到 step2
+      document.getElementById('step2Card').scrollIntoView({behavior:'smooth'});
+    }).catch(function(err){
+      setLoading(btn,'🔍 AI分析场景',false);
+      status.textContent='❌ 网络错误，请重试';
+    });
+  };
+
+  function renderFieldsForm(fields){
+    var container=document.getElementById('fieldsForm');
+    if(!fields||fields.length===0){
+      container.innerHTML='<div style="color:#909399;font-size:13px">该模板暂无字段定义</div>';
+      return;
+    }
+    container.innerHTML=fields.map(function(f){
+      var type= f.field_type==='number'?'number':
+                f.field_type==='select'?'select':
+                f.field_type==='date'?'date':
+                f.field_type==='textarea'?'textarea':
+                'text';
+      var req= f.required?'<span class="req">*</span>':'';
+      if(type==='textarea'){
+        return '<div class="form-row"><label>'+esc(f.field_label||f.field_name)+' '+req+'</label><textarea class="txta" id="f-'+esc(f.field_name)+'" rows="2" placeholder="请输入'+esc(f.field_label||'')+'"></textarea></div>';
+      } else if(type==='select'){
+        var opts=(f.options||[]).split(',').map(function(o){return '<option value="'+esc(o.trim())+'">'+esc(o.trim())+'</option>';}).join('');
+        return '<div class="form-row"><label>'+esc(f.field_label||f.field_name)+' '+req+'</label><select class="inp" id="f-'+esc(f.field_name)+'"><option value="">请选择</option>'+opts+'</select></div>';
+      } else {
+        return '<div class="form-row"><label>'+esc(f.field_label||f.field_name)+' '+req+'</label><input class="inp" id="f-'+esc(f.field_name)+'" type="'+type+'" placeholder="请输入'+esc(f.field_label||'')+'"></div>';
+      }
+    }).join('');
+
+    // 自动填入示例值
+    if(currentTemplateId===1){
+      document.getElementById('f-load_capacity')&&(document.getElementById('f-load_capacity').value='1050');
+      document.getElementById('f-speed')&&(document.getElementById('f-speed').value='2.5');
+      document.getElementById('f-floor_count')&&(document.getElementById('f-floor_count').value='12');
+      document.getElementById('f-use_years')&&(document.getElementById('f-use_years').value='9');
+      document.getElementById('f-last_inspection')&&(document.getElementById('f-last_inspection').value='2023-06-15');
+      document.getElementById('f-next_inspection')&&(document.getElementById('f-next_inspection').value='2024-06-15');
+      document.getElementById('f-rope_condition')&&(document.getElementById('f-rope_condition').value='异常');
+      document.getElementById('f-sheave_wear')&&(document.getElementById('f-sheave_wear').value='超标');
+    }
+  }
+
+  window.submitDiscriminate=function(){
+    if(!currentTemplateId)return;
+    var btn=document.getElementById('btnDiscriminate');
+    var status=document.getElementById('step2Status');
+    setLoading(btn,'提交中...',true);
+    status.textContent='⚙️ 执行判别规则...';
+
+    var formData={};
+    currentFields.forEach(function(f){
+      var el=document.getElementById('f-'+f.field_name);
+      if(el)formData[f.field_name]=el.value;
+    });
+
+    var scene=document.getElementById('sceneInput').value.trim();
+    fetch('/api/discriminate',{credentials:'include',
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({templateId:currentTemplateId,description:scene,formData:formData})
+    }).then(function(r){return r.json()}).then(function(d){
+      setLoading(btn,'⚡ 提交判别',false);
+      if(d.error){status.textContent='❌ '+d.error;return;}
+      renderResult(d);
+      document.getElementById('step3Card').style.display='block';
+      document.getElementById('step3Card').scrollIntoView({behavior:'smooth'});
+    }).catch(function(err){
+      setLoading(btn,'⚡ 提交判别',false);
+      status.textContent='❌ 网络错误，请重试';
+    });
+  };
+
+  function renderResult(d){
+    var area=document.getElementById('resultArea');
+    var icon,tagHtml,tagCls,conclusion;
+    if(d.finalResult==='合规'){
+      icon='✅';tagHtml='<span class="tag tag-ok">合 规</span>';tagCls='ok';conclusion='经系统判定，该电梯符合相关安全标准要求。';
+    } else if(d.finalResult==='不合规'){
+      icon='❌';tagHtml='<span class="tag tag-ng">不合规</span>';tagCls='ng';conclusion='经系统判定，该电梯存在安全隐患，不符合相关安全标准。';
+    } else {
+      icon='⚠️';tagHtml='<span class="tag tag-mb">待人工审核</span>';tagCls='mb';conclusion='系统无法自动判定，建议提交人工审核。';
+    }
+
+    var log=d.executionLog||[];
+    var logsHtml=log.map(function(item){
+      var stIcon=item.status==='success'?'✅':item.status==='error'?'❌':'⚠️';
+      var stCls=item.status==='success'?'ok':item.status==='error'?'ng':'mb';
+      return '<div class="rule-result '+stCls+'"><div class="rr-h"><span style="font-size:18px">'+stIcon+'</span><span class="rr-n">'+esc(item.name||'')+'</span></div>'+
+             (item.result?'<div class="rr-d">结果值: '+esc(item.result)+'</div>':'')+
+             (item.description?'<div class="rr-d">'+esc(item.description)+'</div>':'')+
+             (item.detail?'<div class="rr-d" style="color:#409eff">'+esc(item.detail)+'</div>':'')+
+             (item.formula?'<div class="rr-f">'+esc(item.formula)+'</div>':'')+
+             (item.clause?'<div class="rr-c">📖 '+esc(item.clause)+'</div>':'')+'</div>';
+    }).join('');
+
+    var countsHtml='<div class="info-grid mt"><div class="info-item"><span class="lb">通过：</span><span style="color:#67c23a;font-weight:700">'+d.passCount+'</span></div>'+
+                    '<div class="info-item"><span class="lb">失败：</span><span style="color:#f56c6c;font-weight:700">'+d.failCount+'</span></div>'+
+                    '<div class="info-item"><span class="lb">待定：</span><span style="color:#e6a23c;font-weight:700">'+d.pendingCount+'</span></div>'+
+                    '<div class="info-item"><span class="lb">判别ID：</span><span>#'+d.id+'</span></div></div>';
+
+    area.innerHTML=
+      '<div class="res-wrap"><div class="ric">'+icon+'</div><div class="rtl">'+tagHtml+'</div><div class="rdc">'+esc(d.conclusion||conclusion)+'</div></div>'+
+      countsHtml+
+      '<div class="card-t mt mb">📋 规则执行明细</div>'+
+      (logsHtml||'<div style="color:#909399">无规则明细</div>');
+  }
+})();
+</script>
+<%- include('partials/foot') %>
