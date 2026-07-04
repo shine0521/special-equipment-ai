@@ -1,0 +1,11 @@
+# Cloudflare Pages 配置文件
+# 放在 backend/ 目录下，Cloudflare Pages 会自动读取此配置
+
+build_command = "npm install"
+build_output = "public"
+
+# Node.js 版本
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+NODE_ENV = "production"
