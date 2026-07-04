@@ -1,0 +1,35 @@
+name = "special-equipment-ai"
+main = "cloudflare/worker.js"
+compatibility_date = "2024-01-01"
+node_compat = true
+
+# KV 命名空间 - Session 存储
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "e21c4e9e2a2e4c8f8a8e8e8e8e8e8e8e"
+
+# D1 数据库
+[[d1_databases]]
+binding = "DB"
+database_name = "elevator-ai-db"
+database_id = "f5690d02-58a4-42e9-8cd9-3f71bb311198"
+
+[vars]
+ENV = "production"
+VERSION = "4.0.0"
+
+# 安全头
+[headers]
+forbidden = ["X-Frame-Options", "X-Content-Type-Options"]
+
+[[headers.values]]
+name = "X-Frame-Options"
+value = "DENY"
+
+[[headers.values]]
+name = "X-Content-Type-Options"
+value = "nosniff"
+
+[[headers.values]]
+name = "Referrer-Policy"
+value = "strict-origin-when-cross-origin"
