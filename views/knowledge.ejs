@@ -1,0 +1,334 @@
+<%- include('partials/head') %>
+<%- include('partials/topbar') %>
+<div class="shell">
+<%- include('partials/sidebar', {user: user}) %>
+<main class="main">
+  <div class="content">
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t">📚 法规知识库</div>
+        <div class="gap">
+          <button class="btn btn-o" onclick="loadRegulations()" style="font-size:12px">🔄 刷新</button>
+          <% if (user && user.role === 'admin') { %>
+          <button class="btn btn-p" onclick="showRegModal()">+ 新建法规</button>
+          <% } %>
+        </div>
+      </div>
+      <div id="regulationsList">
+        <div style="text-align:center;padding:40px;color:#909399;">加载中...</div>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- 法规编辑弹窗 -->
+<div class="modal-overlay" id="regModal" style="display:none">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-h">
+      <span class="mht" id="regModalTitle">新建法规</span>
+      <button class="mc" onclick="closeRegModal()">✕</button>
+    </div>
+    <div class="modal-b">
+      <input type="hidden" id="regEditId">
+      <div class="form-row">
+        <label>法规编码 <span class="req">*</span></label>
+        <input class="inp" id="regCode" type="text" placeholder="如: GB 7588-2020">
+      </div>
+      <div class="form-row">
+        <label>法规名称 <span class="req">*</span></label>
+        <input class="inp" id="regName" type="text" placeholder="请输入法规名称">
+      </div>
+      <div class="form-row">
+        <label>发布机构</label>
+        <input class="inp" id="regSource" type="text" placeholder="如: 国家标准化管理委员会">
+      </div>
+      <div class="form-row">
+        <label>生效日期</label>
+        <input class="inp" id="regEffectiveDate" type="date">
+      </div>
+      <div class="form-row">
+        <label>状态</label>
+        <select class="inp" id="regStatus">
+          <option value="draft">草稿</option>
+          <option value="active">生效中</option>
+          <option value="archived">已归档</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-o" onclick="closeRegModal()">取消</button>
+      <button class="btn btn-p" onclick="saveRegulation()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 条款编辑弹窗 -->
+<div class="modal-overlay" id="clauseModal" style="display:none">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-h">
+      <span class="mht" id="clauseModalTitle">添加条款</span>
+      <button class="mc" onclick="closeClauseModal()">✕</button>
+    </div>
+    <div class="modal-b">
+      <input type="hidden" id="clauseEditId">
+      <input type="hidden" id="clauseRegId">
+      <div class="form-row">
+        <label>条款编号 <span class="req">*</span></label>
+        <input class="inp" id="clauseNumber" type="text" placeholder="如: 第1条 或 12.4.2">
+      </div>
+      <div class="form-row">
+        <label>条款标题</label>
+        <input class="inp" id="clauseTitle" type="text" placeholder="条款标题（可选）">
+      </div>
+      <div class="form-row">
+        <label>条款内容 <span class="req">*</span></label>
+        <textarea class="txta" id="clauseContent" rows="4" placeholder="请输入条款内容"></textarea>
+      </div>
+      <div class="form-row">
+        <label>条款类别</label>
+        <select class="inp" id="clauseCategory">
+          <option value="mandatory">强制</option>
+          <option value="recommended">推荐</option>
+          <option value="general">一般</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-o" onclick="closeClauseModal()">取消</button>
+      <button class="btn btn-p" onclick="saveClause()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var loadedClauses = {};
+  var allClauses = {};  // 按regId存储所有条款数据
+
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function isAdmin(){ return <%= user && user.role === 'admin' ? 'true' : 'false' %>; }
+
+  function loadRegulations(){
+    var container = document.getElementById('regulationsList');
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#909399;">加载中...</div>';
+    fetch('/api/regulations', {credentials:'include'}).then(function(r){ return r.json(); }).then(function(d){
+      var data = d.data || [];
+      if(data.length === 0){
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#909399;">暂无法规，点击右上角"新建法规"添加</div>';
+        return;
+      }
+      container.innerHTML = data.map(function(reg){
+        var tagCls = reg.category==='safety'?'tag-ok':reg.category==='inspection'?'tag-info':'tag-mb';
+        var tagTxt = reg.category==='safety'?'安全':reg.category==='inspection'?'检验':'其他';
+        var adminHtml = '';
+        if(isAdmin()){
+          adminHtml = '<span class="gap">'+
+            '<button class="btn btn-o" style="padding:2px 8px;font-size:11px" onclick="editReg('+reg.id+')">编辑</button>'+
+            '<button class="btn btn-o" style="padding:2px 8px;font-size:11px;color:#f56c6c" onclick="deleteReg('+reg.id+')">删除</button>'+
+            '</span>';
+        }
+        return '<div class="ac" id="reg-'+reg.id+'">'+
+          '<div class="ah" onclick="toggleReg('+reg.id+')" style="display:flex;align-items:center;width:100%">'+
+            '<span style="flex:1"><strong>'+esc(reg.name||'')+'</strong> <span class="tag '+tagCls+'" style="margin-left:8px;font-size:10px">'+tagTxt+'</span> <span style="color:#909399;font-size:11px">'+esc(reg.code||'')+'</span></span>'+
+            adminHtml +
+            '<span class="arw" style="margin-left:8px">▼</span>'+
+          '</div>'+
+          '<div class="ab" id="clauses-'+reg.id+'"><div style="text-align:center;padding:20px;color:#909399;font-size:12px">加载条款中...</div></div>'+
+        '</div>';
+      }).join('');
+    }).catch(function(){
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:#f56c6c;">加载失败</div>';
+    });
+  }
+
+  window.toggleReg = function(id){
+    var ah = document.querySelector('#reg-'+id+' .ah');
+    var ab = document.getElementById('clauses-'+id);
+    var isOpen = ah.classList.contains('open');
+    if(isOpen){
+      ah.classList.remove('open');
+      ab.classList.remove('show');
+    } else {
+      ah.classList.add('open');
+      ab.classList.add('show');
+      if(!loadedClauses[id]){
+        loadClauses(id);
+      }
+    }
+  };
+
+  function loadClauses(regId){
+    fetch('/api/regulations/'+regId+'/clauses', {credentials:'include'}).then(function(r){ return r.json(); }).then(function(d){
+      loadedClauses[regId] = true;
+      allClauses[regId] = clauses;  // 缓存条款数据供编辑使用
+      var container = document.getElementById('clauses-'+regId);
+      var clauses = d.clauses || [];
+      var reg = d.regulation || {};
+      var adminAddBtn = isAdmin() ? '<button class="btn btn-o" style="font-size:11px;margin-bottom:8px" onclick="showClauseModal('+regId+')">+ 添加条款</button>' : '';
+      if(clauses.length === 0){
+        container.innerHTML = adminAddBtn + '<div style="color:#909399;font-size:12px;padding:12px 0">暂无条款，点击"添加条款"录入</div>';
+        return;
+      }
+      var clausesHtml = clauses.map(function(c){
+        var catCls = c.category==='mandatory'?'tag-ng':c.category==='recommended'?'tag-info':'tag-mb';
+        var catTxt = c.category==='mandatory'?'强制':c.category==='recommended'?'推荐':'一般';
+        var adminBtns = isAdmin() ? '<span class="gap" style="margin-left:8px">'+
+          '<button class="btn btn-o" style="padding:1px 6px;font-size:10px" onclick="editClause('+c.id+')">编辑</button>'+
+          '<button class="btn btn-o" style="padding:1px 6px;font-size:10px;color:#f56c6c" onclick="deleteClause('+c.id+','+regId+')">删除</button>'+
+          '</span>' : '';
+        return '<div class="cl" style="position:relative">'+
+          '<div class="cn"><span style="font-size:11px;color:#909399">第 '+esc(c.clause_number||'')+' 条</span> · <span>'+esc(c.title||'')+'</span> <span class="tag '+catCls+'" style="margin-left:6px;font-size:10px">'+catTxt+'</span>'+adminBtns+'</div>'+
+          '<div style="font-size:13px;line-height:1.6">'+esc(c.content||'').replace(/\n/g,'<br>')+'</div>'+
+        '</div>';
+      }).join('');
+      container.innerHTML = adminAddBtn + '<div style="margin-bottom:10px;font-size:12px;color:#909399">📖 '+esc(reg.code||'')+' · '+clauses.length+' 条条款</div>' + clausesHtml;
+    }).catch(function(){
+      document.getElementById('clauses-'+regId).innerHTML = '<div style="color:#f56c6c;font-size:12px;padding:12px 0">条款加载失败</div>';
+    });
+  }
+
+  // ========== 法规 CRUD ==========
+
+  window.showRegModal = function(){
+    document.getElementById('regModalTitle').textContent = '新建法规';
+    document.getElementById('regEditId').value = '';
+    document.getElementById('regCode').value = '';
+    document.getElementById('regName').value = '';
+    document.getElementById('regSource').value = '';
+    document.getElementById('regEffectiveDate').value = '';
+    document.getElementById('regStatus').value = 'draft';
+    document.getElementById('regModal').style.display = 'flex';
+  };
+
+  window.editReg = function(id){
+    fetch('/api/regulations/'+id, {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      document.getElementById('regModalTitle').textContent = '编辑法规';
+      document.getElementById('regEditId').value = d.id;
+      document.getElementById('regCode').value = d.code || '';
+      document.getElementById('regName').value = d.name || '';
+      document.getElementById('regSource').value = d.source || '';
+      document.getElementById('regEffectiveDate').value = (d.effective_date||'').substring(0,10);
+      document.getElementById('regStatus').value = d.status || 'draft';
+      document.getElementById('regModal').style.display = 'flex';
+    });
+  };
+
+  window.deleteReg = function(id){
+    if(!confirm('确定要删除该法规吗？关联的条款也会一并删除！')) return;
+    fetch('/api/regulations/'+id, {method:'DELETE', credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      alert(d.message || '删除成功');
+      loadRegulations();
+    }).catch(function(){ alert('删除失败'); });
+  };
+
+  window.saveRegulation = function(){
+    var id = document.getElementById('regEditId').value;
+    var code = document.getElementById('regCode').value.trim();
+    var name = document.getElementById('regName').value.trim();
+    var source = document.getElementById('regSource').value.trim();
+    var effective_date = document.getElementById('regEffectiveDate').value;
+    var status = document.getElementById('regStatus').value;
+    if(!code || !name){ alert('编码和名称不能为空'); return; }
+    var payload = {code:code, name:name, source:source||null, effective_date:effective_date||null, status:status};
+    var method = id ? 'PUT' : 'POST';
+    var url = id ? '/api/regulations/'+id : '/api/regulations';
+    fetch(url, {method:method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload), credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      if(d.error){ alert(d.error); return; }
+      alert(d.message || '保存成功');
+      closeRegModal();
+      loadRegulations();
+    }).catch(function(){ alert('保存失败'); });
+  };
+
+  window.closeRegModal = function(){
+    document.getElementById('regModal').style.display = 'none';
+  };
+  document.getElementById('regModal').addEventListener('click', function(e){ if(e.target===this) closeRegModal(); });
+
+  // ========== 条款 CRUD ==========
+
+  window.showClauseModal = function(regId, clauseId){
+    document.getElementById('clauseEditId').value = '';
+    document.getElementById('clauseRegId').value = regId || '';
+    document.getElementById('clauseModalTitle').textContent = '添加条款';
+    document.getElementById('clauseNumber').value = '';
+    document.getElementById('clauseTitle').value = '';
+    document.getElementById('clauseContent').value = '';
+    document.getElementById('clauseCategory').value = 'mandatory';
+    document.getElementById('clauseModal').style.display = 'flex';
+  };
+
+  window.editClause = function(clauseId){
+    // 从缓存中查找条款数据
+    var clause = null;
+    for(var rid in allClauses){
+      var list = allClauses[rid];
+      for(var i=0;i<list.length;i++){
+        if(list[i].id == clauseId){ clause = list[i]; break; }
+      }
+      if(clause) break;
+    }
+    if(!clause){ alert('条款数据未找到，请刷新后重试'); return; }
+    document.getElementById('clauseEditId').value = clause.id;
+    document.getElementById('clauseRegId').value = clause.regulation_id;
+    document.getElementById('clauseModalTitle').textContent = '编辑条款';
+    document.getElementById('clauseNumber').value = clause.clause_number || '';
+    document.getElementById('clauseTitle').value = clause.title || '';
+    document.getElementById('clauseContent').value = clause.content || '';
+    document.getElementById('clauseCategory').value = clause.category || 'mandatory';
+    document.getElementById('clauseModal').style.display = 'flex';
+  };
+
+  window.deleteClause = function(clauseId, regId){
+    if(!confirm('确定要删除该条款吗？')) return;
+    fetch('/api/clauses/'+clauseId, {method:'DELETE', credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      alert(d.message || '删除成功');
+      loadedClauses[regId] = false; // 强制重新加载
+      loadClauses(regId);
+    }).catch(function(){ alert('删除失败'); });
+  };
+
+  window.saveClause = function(){
+    var clauseId = document.getElementById('clauseEditId').value;
+    var regId = document.getElementById('clauseRegId').value;
+    var clause_number = document.getElementById('clauseNumber').value.trim();
+    var title = document.getElementById('clauseTitle').value.trim();
+    var content = document.getElementById('clauseContent').value.trim();
+    var category = document.getElementById('clauseCategory').value;
+    if(!clause_number || !content){ alert('条款编号和内容不能为空'); return; }
+    var payload = {clause_number:clause_number, title:title||null, content:content, category:category};
+    var method, url;
+    if(clauseId){
+      method = 'PUT';
+      url = '/api/clauses/'+clauseId;
+    } else {
+      method = 'POST';
+      url = '/api/regulations/'+regId+'/clauses';
+    }
+    fetch(url, {
+      method:method,
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload),
+      credentials:'include'
+    }).then(function(r){return r.json()}).then(function(d){
+      if(d.error){ alert(d.error); return; }
+      alert(d.message || '保存成功');
+      closeClauseModal();
+      loadedClauses[regId] = false;
+      loadClauses(regId);
+      // 刷新法规列表
+      loadRegulations();
+    }).catch(function(){ alert('保存失败'); });
+  };
+
+  window.closeClauseModal = function(){
+    document.getElementById('clauseModal').style.display = 'none';
+  };
+  document.getElementById('clauseModal').addEventListener('click', function(e){ if(e.target===this) closeClauseModal(); });
+
+  loadRegulations();
+})();
+</script>
+<%- include('partials/foot') %>
