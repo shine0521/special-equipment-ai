@@ -1,0 +1,202 @@
+<%- include('partials/head') %>
+<%- include('partials/topbar') %>
+<div class="shell">
+<%- include('partials/sidebar', {user: user}) %>
+<main class="main">
+  <div class="content">
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t">📊 数据概览</div>
+        <span id="clock" style="font-size:12px;color:#909399;"></span>
+      </div>
+      <div class="stats" id="statsGrid">
+        <div class="stat">
+          <div class="si" style="background:#ecf5ff">📋</div>
+          <div><div class="sv" id="s-today">--</div><div class="sl">今日判别数</div></div>
+        </div>
+        <div class="stat">
+          <div class="si" style="background:#fdf6ec">⏳</div>
+          <div><div class="sv" id="s-pending">--</div><div class="sl">待审核数</div></div>
+        </div>
+        <div class="stat">
+          <div class="si" style="background:#f0f9eb">📌</div>
+          <div><div class="sv" id="s-templates">--</div><div class="sl">活跃模板数</div></div>
+        </div>
+        <div class="stat">
+          <div class="si" style="background:#fef0f0">✅</div>
+          <div><div class="sv" id="s-rate">--%</div><div class="sl">合规率</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col">
+        <div class="card">
+          <div class="card-h"><div class="card-t">📈 最近7天趋势</div></div>
+          <div class="bars" id="chartBars">
+            <div style="text-align:center;color:#909399;font-size:13px;width:100%;padding:60px 0">加载中...</div>
+          </div>
+          <div style="display:flex;gap:24px;margin-top:10px;font-size:11px;color:#909399;justify-content:center;">
+            <span>● 合规</span><span>● 不合规</span><span>● 待人工</span>
+          </div>
+        </div>
+      </div>
+      <div class="col" style="max-width:320px">
+        <div class="card">
+          <div class="card-h"><div class="card-t">⚡ 快捷操作</div></div>
+          <a href="/discriminate" class="btn-b" style="background:#ecf5ff;color:#409eff;border:1px solid #b3d8ff;">✅ 新建合规判别</a>
+          <a href="/history" class="btn-b" style="background:#f0f9eb;color:#67c23a;border:1px solid #c2e7b0;">📜 查看判别历史</a>
+          <% if (user && (user.role === 'auditor' || user.role === 'admin')) { %>
+          <a href="/audit" class="btn-b" style="background:#fdf6ec;color:#e6a23c;border:1px solid #faecd8;">🔍 人工审核任务</a>
+          <% } %>
+          <a href="/templates" class="btn-b" style="background:#f4f4f5;color:#606266;border:1px solid #e4e7ed;">📋 管理模板</a>
+          <a href="/knowledge" class="btn-b" style="background:#f9f9f9;color:#909399;border:1px solid #e4e7ed;">📚 查阅知识库</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t">🕐 最近判别记录</div>
+        <a href="/history" style="font-size:12px;color:#409eff;text-decoration:none;">查看全部 →</a>
+      </div>
+      <table class="tbl" id="recentTable">
+        <thead>
+          <tr>
+            <th style="width:60px">ID</th>
+            <th>模板名称</th>
+            <th style="width:80px">结果</th>
+            <th style="width:150px">时间</th>
+          </tr>
+        </thead>
+        <tbody id="recentBody">
+          <tr><td colspan="4" style="text-align:center;padding:30px;color:#909399;">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+</div>
+
+<div class="modal-overlay" id="detailModal" style="display:none">
+  <div class="modal">
+    <div class="modal-h">
+      <span class="mht">判别详情</span>
+      <button class="mc" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-b" id="modalBody">加载中...</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function clock(){
+    var d=new Date();
+    var pad=function(n){return n<10?'0'+n:n};
+    document.getElementById('clock').textContent=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  }
+  clock();
+  setInterval(clock,1000);
+
+  function loadStats(){
+    fetch('/api/dashboard/stats', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      document.getElementById('s-today').textContent=d.todayDiscriminations||0;
+      document.getElementById('s-pending').textContent=d.pendingAudits||0;
+      document.getElementById('s-templates').textContent=d.activeTemplates||0;
+      var rate=d.compliantRate||'0%';
+      document.getElementById('s-rate').textContent=(typeof rate==='number'?rate.toFixed(1):rate)+(String(rate).includes('%')?'':'%');
+      renderChart(d.last7Days||[]);
+    }).catch(function(){
+      ['s-today','s-pending','s-templates'].forEach(function(id){
+        document.getElementById(id).textContent='--';
+      });
+      document.getElementById('s-rate').textContent='--%';
+    });
+  }
+
+  function renderChart(days){
+    var container=document.getElementById('chartBars');
+    if(!days||days.length===0){
+      container.innerHTML='<div style="text-align:center;color:#909399;font-size:13px;width:100%;padding:60px 0">暂无数据</div>';
+      return;
+    }
+    var max=Math.max.apply(null,days.map(function(d){return d.total||0}),1);
+    container.innerHTML=days.map(function(d){
+      var h=d.total>0?Math.max(Math.round((d.total/max)*140),8):8;
+      var h2=d.compliant>0?Math.max(Math.round((d.compliant/max)*140),4):0;
+      return '<div class="bar"><div class="bar-col" style="height:'+h+'px;background:#d3e7ff"><div style="font-size:10px;color:#fff;text-align:center;padding-top:2px">'+(d.total||0)+'</div></div><div class="bar-col" style="height:'+h2+'px;background:#67c23a;margin-top:2px"></div><div class="bar-lbl">'+d.label+'</div></div>';
+    }).join('');
+  }
+
+  function loadRecent(){
+    fetch('/api/discrimination-records?page=1&limit=8', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var tbody=document.getElementById('recentBody');
+      if(!d.data||d.data.length===0){
+        tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:30px;color:#909399;">暂无记录</td></tr>';
+        return;
+      }
+      tbody.innerHTML=d.data.map(function(r){
+        var tag=r.final_result==='合规'?'<span class="tag tag-ok">合规</span>':
+                r.final_result==='不合规'?'<span class="tag tag-ng">不合规</span>':
+                r.final_result==='待人工'?'<span class="tag tag-mb">待人工</span>':'<span class="tag tag-mb">'+esc(r.final_result||'待人工')+'</span>';
+        var dt=new Date(r.created_at);
+        var ts=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+        return '<tr class="clickable" onclick="showDetail('+r.id+')"><td style="color:#409eff">#'+r.id+'</td><td>'+esc(r.template_name||'')+'</td><td>'+tag+'</td><td style="color:#909399;font-size:12px">'+ts+'</td></tr>';
+      }).join('');
+    }).catch(function(){
+      document.getElementById('recentBody').innerHTML='<tr><td colspan="4" style="text-align:center;padding:30px;color:#909399;">加载失败</td></tr>';
+    });
+  }
+
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  function showDetail(id){
+    var modal=document.getElementById('detailModal');
+    document.getElementById('modalBody').innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
+    modal.style.display='flex';
+    fetch('/api/discrimination-records/'+id, {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var rec=d.record||{};
+      var tag=rec.final_result==='合规'?'<span class="tag tag-ok">合规</span>':
+              rec.final_result==='不合规'?'<span class="tag tag-ng">不合规</span>':
+              rec.final_result==='待人工'?'<span class="tag tag-mb">待人工</span>':'<span class="tag tag-mb">'+esc(rec.final_result||'待人工')+'</span>';
+      var dt=rec.created_at?new Date(rec.created_at):new Date();
+      var ts=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+      var rules=rec.rule_results||[];
+      var rulesHtml=rules.map(function(rule){
+        var icon=rule.status==='success'?'✅':rule.status==='error'?'❌':'⚠️';
+        var cls=rule.status==='success'?'ok':rule.status==='error'?'ng':'mb';
+        return '<div class="rule-result '+cls+'"><div class="rr-h"><span style="font-size:18px">'+icon+'</span><span class="rr-n">'+esc(rule.name||'')+'</span><span>'+tag+'</span></div>'+
+               (rule.description?'<div class="rr-d">'+esc(rule.description)+'</div>':'')+
+               (rule.detail?'<div class="rr-d" style="color:#409eff">'+esc(rule.detail)+'</div>':'')+
+               (rule.formula?'<div class="rr-f">'+esc(rule.formula)+'</div>':'')+
+               (rule.clause?'<div class="rr-c">'+esc(rule.clause)+'</div>':'')+'</div>';
+      }).join('');
+      document.getElementById('modalBody').innerHTML=
+        '<div style="margin-bottom:16px"><strong>模板：</strong>'+esc(rec.template_name||'')+'</div>'+
+        '<div class="info-grid mb"><div class="info-item"><span class="lb">判别ID：</span><span>#'+rec.id+'</span></div>'+
+        '<div class="info-item"><span class="lb">状态：</span>'+tag+'</div>'+
+        '<div class="info-item"><span class="lb">提交时间：</span><span>'+ts+'</span></div></div>'+
+        (rec.conclusion?'<div style="padding:12px;background:#f9f9f9;border-radius:6px;font-size:13px;margin-bottom:16px">'+esc(rec.conclusion)+'</div>':'')+
+        '<div class="card-t mb">规则执行明细</div>'+
+        (rulesHtml||'<div style="color:#909399">无规则明细</div>');
+    }).catch(function(){
+      document.getElementById('modalBody').innerHTML='<div style="color:#f56c6c;text-align:center;padding:30px">加载失败</div>';
+    });
+  }
+
+  window.showDetail=showDetail;
+
+  window.closeModal=function(){
+    document.getElementById('detailModal').style.display='none';
+  };
+
+  document.getElementById('detailModal').addEventListener('click',function(e){
+    if(e.target===this)closeModal();
+  });
+
+  loadStats();
+  loadRecent();
+  setInterval(function(){loadStats();loadRecent();},30000);
+})();
+</script>
+<%- include('partials/foot') %>
