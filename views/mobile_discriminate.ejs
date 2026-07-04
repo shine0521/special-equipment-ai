@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
+<title>合规判别 · 特种设备AI</title>
+<style>
+:root{--p:#409eff;--s:#67c23a;--d:#f56c6c;--w:#e6a23c;--bg:#f5f7fa;--card:#fff;--tx:#303133;--t2:#606266;--t3:#909399;--t4:#c0c4ce;--bd:#dcdfe6;--bdr:8px}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font:13px/1.5 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);margin:0 auto;min-height:100vh;max-width:480px}
+.m-shell{min-height:100vh;padding-bottom:56px}
+.m-topbar{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.m-topbar .tl{font-size:15px;font-weight:600}
+.m-topbar .tr{font-size:11px;opacity:.88;cursor:pointer}
+.m-content{padding:10px}
+.m-card{background:var(--card);border-radius:var(--bdr);padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.m-card-h{font-size:13px;font-weight:600;margin-bottom:10px}
+.m-txta{width:100%;border:1px solid var(--bd);border-radius:6px;padding:10px;font-size:13px;resize:none;min-height:88px;outline:none;transition:border-color .2s;font-family:inherit;line-height:1.6}
+.m-txta:focus{border-color:var(--p)}
+.m-inp{width:100%;height:36px;border:1px solid var(--bd);border-radius:5px;padding:0 10px;font-size:13px;margin-bottom:8px;outline:none;transition:border-color .2s}
+.m-inp:focus{border-color:var(--p)}
+.m-btn{display:block;width:100%;padding:10px;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;text-align:center;transition:opacity .15s}
+.m-btn:active{opacity:.8}
+.m-btn:disabled{opacity:.5;cursor:not-allowed}
+.m-btn-p{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.m-btn-o{background:#fff;color:var(--tx);border:1px solid var(--bd)}
+.m-btn-row{display:flex;gap:8px}
+.m-btn-row .m-btn{flex:1}
+.m-field-group{background:#f5f7fa;border-radius:6px;padding:10px;margin-bottom:8px}
+.m-field-group label{display:block;font-size:11px;color:var(--t2);margin-bottom:4px;font-weight:500}
+.m-tag{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.m-tag-ok{background:#f0f9eb;color:var(--s)}
+.m-tag-ng{background:#fef0f0;color:var(--d)}
+.m-tag-mb{background:#fdf6ec;color:var(--w)}
+.m-tag-info{background:#ecf5ff;color:var(--p)}
+
+/* ── 结果区块 ── */
+.m-result{text-align:center;padding:24px 10px 16px}
+.m-result .rico{font-size:56px;display:block;margin-bottom:6px}
+.m-result .rtl{font-size:20px;font-weight:700;margin-bottom:6px}
+.m-result .rdc{font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:4px}
+
+/* ── 规则明细 ── */
+.m-rule{display:flex;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0;gap:8px}
+.m-rule:last-child{border-bottom:none}
+.m-rule .r-st{flex-shrink:0;width:20px;text-align:center;font-size:14px;margin-top:1px}
+.m-rule .r-bd{flex:1;min-width:0}
+.m-rule .r-nm{font-size:12px;font-weight:600;color:var(--tx)}
+.m-rule .r-ds{font-size:10px;color:var(--t2);margin-top:2px;line-height:1.5}
+.m-rule .r-mt{font-size:9px;color:var(--t3);margin-top:2px;word-break:break-all}
+
+/* ── TabBar ── */
+.m-tabbar{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;height:50px;background:#fff;display:flex;box-shadow:0 -1px 4px rgba(0,0,0,.06);z-index:100;border-top:1px solid #f0f0f0}
+.m-tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;color:var(--t3);font-size:9px;transition:color .15s}
+.m-tabbar a.on{color:var(--p)}
+.m-tabbar a span{font-size:20px;margin-bottom:1px}
+
+.m-loading-txt{text-align:center;padding:12px;color:var(--t3);font-size:12px}
+.m-error-txt{text-align:center;padding:8px;color:var(--d);font-size:12px}
+</style>
+</head>
+<body class="iphone-host">
+<%- include('partials/iphone_frame_start') %>
+
+<div class="m-shell">
+
+<div class="m-topbar">
+<div class="tl">⚖️ 合规判别</div>
+<div class="tr" onclick="fillSample()">📋 示例</div>
+</div>
+
+<div class="m-content">
+
+<!-- 输入区 -->
+<div class="m-card">
+<div class="m-card-h">📝 输入问题描述</div>
+<textarea class="m-txta" id="inputText" placeholder='例如：电梯钢丝绳磨损率达8%，维保间隔10天，曳引轮槽磨损量3mm...'></textarea>
+<button class="m-btn m-btn-p" id="btnClassify" onclick="doClassify()">🤖 AI智能分析</button>
+</div>
+
+<!-- 分析结果 -->
+<div class="m-card" id="classifyResult" style="display:none">
+<div class="m-card-h" id="tplInfo">🎯 匹配模板：-</div>
+<div id="probabilityBar" style="height:4px;background:#e8eaed;border-radius:2px;margin-bottom:10px;overflow:hidden">
+<div id="probFill" style="height:100%;border-radius:2px;width:0%;transition:width .4s ease"></div>
+</div>
+<div id="fieldsContainer"></div>
+<button class="m-btn m-btn-p" id="btnDiscriminate" onclick="doDiscriminate()">⚖️ 提交判别</button>
+</div>
+
+<!-- 最终结果 -->
+<div id="finalResultArea" style="display:none"></div>
+
+</div>
+</div>
+
+
+<script>
+var currentTemplate=null;
+
+function fillSample(){
+  document.getElementById('inputText').value='钢丝绳磨损率8%，维保间隔10天，曳引轮槽磨损量3mm，紧急制动测试通过率90%，层门间隙7mm，导轨垂直度偏差2mm';
+}
+
+function errMsg(msg){
+  var e=document.createElement('div');
+  e.className='m-error-txt';
+  e.textContent=msg;
+  return e;
+}
+
+function loading(){
+  var l=document.createElement('div');
+  l.className='m-loading-txt';
+  l.textContent='加载中...';
+  return l;
+}
+
+// ── AI智能分析 ──
+function doClassify(){
+  var text=document.getElementById('inputText').value.trim();
+  if(!text){alert('请先输入问题描述');return}
+  var btn=document.getElementById('btnClassify');
+  btn.disabled=true;
+  btn.textContent='⏳ 分析中...';
+
+  fetch('/api/ai/classify',{credentials:'include',
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    credentials:'include',
+    body:JSON.stringify({text:text})
+  })
+  .then(function(r){
+    if(!r.ok)throw new Error('请求失败 ('+r.status+')');
+    return r.json();
+  })
+  .then(function(d){
+    currentTemplate=d;
+    var cr=document.getElementById('classifyResult');
+    cr.style.display='block';
+
+    // 模板名称 + 置信度
+    var pct=(d.confidence*100).toFixed(0);
+    document.getElementById('tplInfo').innerHTML='🎯 匹配模板：<b>'+d.templateName+'</b> <span class="m-tag m-tag-info">'+pct+'%</span>';
+
+    // 置信度条
+    var pf=document.getElementById('probFill');
+    pf.style.width=pct+'%';
+    pf.style.background=pct>=80?'#67c23a':pct>=60?'#e6a23c':'#f56c6c';
+
+    // 动态字段
+    var fc=document.getElementById('fieldsContainer');
+    if(d.fields&&d.fields.length>0){
+      fc.innerHTML=d.fields.map(function(f){
+        return '<div class="m-field-group"><label>'+f.field_label+'</label>'+
+          '<input class="m-inp" id="field_'+f.field_name+'" placeholder="请输入'+f.field_label+'"></div>';
+      }).join('');
+    }else{
+      fc.innerHTML='<div class="m-loading-txt" style="color:var(--t3)">无需额外字段，直接提交判别</div>';
+    }
+
+    // 滚动到结果区
+    cr.scrollIntoView({behavior:'smooth',block:'center'});
+  })
+  .catch(function(e){
+    alert('AI分析失败：'+e.message);
+  })
+  .finally(function(){
+    btn.disabled=false;
+    btn.textContent='🤖 AI智能分析';
+  });
+}
+
+// ── 提交判别 ──
+function doDiscriminate(){
+  if(!currentTemplate){alert('请先执行AI分析');return}
+  var btn=document.getElementById('btnDiscriminate');
+  btn.disabled=true;
+  btn.textContent='⏳ 判别中...';
+
+  var formData={};
+  if(currentTemplate.fields){
+    currentTemplate.fields.forEach(function(f){
+      var el=document.getElementById('field_'+f.field_name);
+      formData[f.field_name]=el?el.value:'';
+    });
+  }
+
+  fetch('/api/discriminate',{credentials:'include',
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    credentials:'include',
+    body:JSON.stringify({
+      templateId:currentTemplate.templateId,
+      templateName:currentTemplate.templateName,
+      inputText:document.getElementById('inputText').value,
+      formData:formData
+    })
+  })
+  .then(function(r){
+    if(!r.ok)throw new Error('请求失败 ('+r.status+')');
+    return r.json();
+  })
+  .then(function(d){
+    var icon,color,cls;
+    if(d.finalResult==='合规'){
+      icon='✅';color='var(--s)';cls='ok';
+    }else if(d.finalResult==='不合规'){
+      icon='❌';color='var(--d)';cls='ng';
+    }else{
+      icon='⚠️';color='var(--w)';cls='mb';
+    }
+
+    // 规则明细HTML
+    var rulesHtml='';
+    if(d.executionLog&&d.executionLog.length>0){
+      rulesHtml=d.executionLog.map(function(r){
+        var ico=r.status==='success'?'✅':r.status==='error'?'❌':'⚠️';
+        return '<div class="m-rule">'+
+          '<div class="r-st">'+ico+'</div>'+
+          '<div class="r-bd">'+
+            '<div class="r-nm">'+r.name+'</div>'+
+            (r.description?'<div class="r-ds">'+r.description+'</div>':'')+
+            (r.detail?'<div class="r-ds" style="color:var(--tx)">'+r.detail+'</div>':'')+
+            (r.formula?'<div class="r-mt">公式：'+r.formula+'</div>':'')+
+            (r.clause?'<div class="r-mt">依据：'+r.clause+'</div>':'')+
+          '</div>'+
+        '</div>';
+      }).join('');
+    }
+
+    // 连接结果HTML
+    document.getElementById('finalResultArea').innerHTML=
+      '<div class="m-card">'+
+        '<div class="m-result">'+
+          '<span class="rico">'+icon+'</span>'+
+          '<div class="rtl" style="color:'+color+'">'+d.finalResult+'</div>'+
+          '<div class="rdc">'+d.conclusion+'</div>'+
+          '<div style="margin-top:8px;display:flex;gap:6px;justify-content:center">'+
+            (d.passCount!==undefined?'<span class="m-tag m-tag-ok">通过 '+d.passCount+'</span>':'')+
+            (d.failCount!==undefined?'<span class="m-tag m-tag-ng">不通过 '+d.failCount+'</span>':'')+
+            (d.pendingCount!==undefined?'<span class="m-tag m-tag-mb">待定 '+d.pendingCount+'</span>':'')+
+          '</div>'+
+        '</div>'+
+        (rulesHtml?'<div class="m-card-h" style="margin-bottom:4px;padding-top:4px;border-top:1px solid #f0f0f0">📋 规则明细</div>'+rulesHtml:'')+
+      '</div>';
+    document.getElementById('finalResultArea').style.display='block';
+    document.getElementById('finalResultArea').scrollIntoView({behavior:'smooth',block:'center'});
+  })
+  .catch(function(e){
+    alert('判别提交失败：'+e.message);
+  })
+  .finally(function(){
+    btn.disabled=false;
+    btn.textContent='⚖️ 提交判别';
+  });
+}
+</script>
+
+<%- include('partials/iphone_frame_end') %>
+</body>
+</html>
