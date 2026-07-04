@@ -1,0 +1,55 @@
+<div class="side">
+  <div class="side-h">
+    <div class="ico">🏗️</div>
+    <div class="name">电梯安全管理<br>AI系统</div>
+  </div>
+  <nav class="side-nav">
+    <div class="side-sec">主导航</div>
+    <a href="/dashboard" class="side-it" data-page="dashboard">
+      <span>📊</span><span>仪表盘</span>
+    </a>
+    <a href="/discriminate" class="side-it" data-page="discriminate">
+      <span>✅</span><span>合规判别</span>
+    </a>
+    <a href="/history" class="side-it" data-page="history">
+      <span>📜</span><span>判别历史</span>
+    </a>
+    <a href="/templates" class="side-it" data-page="templates">
+      <span>📋</span><span>模板管理</span>
+    </a>
+    <a href="/knowledge" class="side-it" data-page="knowledge">
+      <span>📚</span><span>知识库</span>
+    </a>
+
+    <% if (user && (user.role === 'auditor' || user.role === 'admin')) { %>
+    <div class="side-sec">审核</div>
+    <a href="/audit" class="side-it" data-page="audit">
+      <span>🔍</span><span>人工审核</span>
+    </a>
+    <% } %>
+
+    <% if (user && user.role === 'admin') { %>
+    <div class="side-sec">管理</div>
+    <a href="/research" class="side-it" data-page="research">
+      <span>🔬</span><span>模板研究</span>
+    </a>
+    <% } %>
+
+    <div class="side-sec">系统</div>
+    <a href="/logs" class="side-it" data-page="logs">
+      <span>🔗</span><span>司法留痕</span>
+    </a>
+    <a href="/settings" class="side-it" data-page="settings">
+      <span>⚙️</span><span>系统设置</span>
+    </a>
+  </nav>
+  <div class="side-ft">v3.0 · 电梯安全AI</div>
+</div>
+<script>
+(function(){
+  var p=location.pathname.replace(/^\//,'').split('/')[0]||'dashboard';
+  document.querySelectorAll('.side-it').forEach(function(a){
+    a.classList.toggle('on',a.getAttribute('data-page')===p);
+  });
+})();
+</script>
