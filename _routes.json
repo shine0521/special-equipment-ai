@@ -1,0 +1,6 @@
+{
+  "routes": [
+    { "pattern": "/api/*", "script": "api" },
+    { "pattern": "/*", "fallthrough": true }
+  ]
+}
