@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>特种设备电梯AI系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#1a3a4a;--primary-dark:#0d2137;--success:#27ae60;--danger:#e74c3c;--warning:#f39c12;--gray:#95a5a6;--bg:#f0f2f5;--card:#fff;--text:#2c3e50;--muted:#7f8c8d}
+body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ========== 登录页 ========== */
+.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,var(--primary-dark),var(--primary),#2c5364)}
+.login-card{background:var(--card);border-radius:20px;padding:40px;width:min(400px,92vw);box-shadow:0 25px 80px rgba(0,0,0,.35)}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo .icon{font-size:56px;margin-bottom:12px}
+.login-logo h1{font-size:20px;font-weight:700;color:var(--primary-dark)}
+.login-logo p{font-size:13px;color:var(--muted);margin-top:6px}
+.login-error{background:#fdf2f2;border:1px solid #f5c6cb;color:#c0392b;padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px;display:none}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.form-group input{width:100%;padding:13px 16px;border:1.5px solid #e0e6ed;border-radius:10px;font-size:15px;transition:border-color .2s,box-shadow .2s;background:#fafbfc}
+.form-group input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,58,74,.1)}
+.btn-primary{width:100%;padding:15px;background:linear-gradient(135deg,var(--primary),#2c5364);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(26,58,74,.35)}
+.btn-primary:active{transform:translateY(0)}
+.login-hint{text-align:center;margin-top:20px;font-size:12px;color:var(--muted)}
+.login-hint strong{color:var(--primary)}
+
+/* ========== 应用框架 ========== */
+.app{display:none;flex-direction:column;min-height:100vh}
+.app-header{background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.15)}
+.app-header h1{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.header-user{display:flex;align-items:center;gap:10px;font-size:13px}
+.role-badge{background:rgba(255,255,255,.2);padding:3px 10px;border-radius:10px;font-size:11px}
+.btn-logout{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer}
+
+/* ========== TabBar ========== */
+.tab-bar{display:flex;background:var(--card);border-top:1px solid #eee;padding:6px 0;position:sticky;bottom:0;z-index:100}
+.tab-item{flex:1;text-align:center;padding:6px 4px;cursor:pointer;color:var(--muted);font-size:10px;transition:color .2s;display:flex;flex-direction:column;align-items:center;gap:3px}
+.tab-item.active{color:var(--primary)}
+.tab-item .tab-icon{font-size:20px}
+
+/* ========== 页面内容 ========== */
+.page{display:none;flex:1;padding:16px;max-width:800px;margin:0 auto;width:100%}
+.page.active{display:block}
+
+/* ========== 统计卡片 ========== */
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border-radius:14px;padding:18px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stat-num{font-size:28px;font-weight:700;color:var(--primary);line-height:1.2}
+.stat-label{font-size:12px;color:var(--muted);margin-top:4px}
+.stat-card.highlight{background:linear-gradient(135deg,var(--primary),#2c5364);color:#fff}
+.stat-card.highlight .stat-label{color:rgba(255,255,255,.8)}
+
+/* ========== 通用卡片 ========== */
+.card{background:var(--card);border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.card-title{font-size:14px;font-weight:600;color:var(--primary-dark);margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid var(--bg);display:flex;align-items:center;gap:8px}
+
+/* ========== 表格 ========== */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 8px;color:var(--muted);font-weight:500;font-size:12px;border-bottom:2px solid var(--bg)}
+td{padding:11px 8px;border-bottom:1px solid #f5f5f5;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbfc;cursor:pointer}
+
+/* ========== Badge ========== */
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600}
+.badge-success{background:#eafaf1;color:#1e8449}
+.badge-danger{background:#fdf2f2;color:#c0392b}
+.badge-warning{background:#fff8e8;color:#b7770d}
+.badge-info{background:#eef6ff;color:#1a6eb5}
+.badge-gray{background:#f4f6f8;color:#7f8c8d}
+
+/* ========== 表单 ========== */
+.form-section{background:var(--card);border-radius:14px;padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.form-section h3{font-size:15px;font-weight:600;margin-bottom:16px;color:var(--primary-dark)}
+textarea.form-input{width:100%;min-height:100px;padding:12px;border:1.5px solid #e0e6ed;border-radius:10px;font-size:14px;resize:vertical;font-family:inherit}
+textarea.form-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,58,74,.1)}
+select.form-input{width:100%;padding:12px;border:1.5px solid #e0e6ed;border-radius:10px;font-size:14px;background:#fafbfc}
+.btn-success{background:var(--success);color:#fff;border:none;padding:14px 24px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
+.btn-secondary{background:#f4f6f8;color:var(--text);border:1px solid #e0e6ed;padding:10px 16px;border-radius:8px;font-size:13px;cursor:pointer}
+
+/* ========== AI 结果展示 ========== */
+.ai-result{margin-top:16px;padding:18px;background:#f8fafc;border-radius:12px;border-left:4px solid var(--primary)}
+.ai-result-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.ai-result-badge{padding:5px 14px;border-radius:10px;font-size:13px;font-weight:700}
+.ai-result-badge.pass{background:#eafaf1;color:#1e8449}
+.ai-result-badge.fail{background:#fdf2f2;color:#c0392b}
+.ai-result-badge.maybe{background:#fff8e8;color:#b7770d}
+.ai-confidence{font-size:13px;color:var(--muted)}
+.ai-reason{font-size:13px;color:var(--text);line-height:1.6}
+.ai-suggestions{margin-top:12px;padding:12px;background:#fff;border-radius:8px;font-size:13px}
+.ai-suggestions li{margin:6px 0;padding-left:16px;position:relative;color:var(--text)}
+.ai-suggestions li::before{content:'→';position:absolute;left:0;color:var(--primary)}
+
+/* ========== 空状态 ========== */
+.empty-state{text-align:center;padding:48px 24px;color:var(--muted)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px;opacity:.5}
+.empty-state p{font-size:14px}
+
+/* ========== 加载状态 ========== */
+.loading{text-align:center;padding:32px;color:var(--muted);font-size:14px}
+.spinner{display:inline-block;width:20px;height:20px;border:2.5px solid #e0e6ed;border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ========== 移动端 ========== */
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .stat-num{font-size:24px}
+  .app-header{padding:0 16px}
+  .page{padding:12px}
+  .card{padding:16px}
+  .login-card{padding:28px 20px}
+}
+
+/* ========== 快捷操作 ========== */
+.quick-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.quick-btn{padding:8px 14px;background:var(--card);border:1px solid #e0e6ed;border-radius:8px;font-size:13px;cursor:pointer;transition:all .15s;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.quick-btn:hover,.quick-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* ========== 进度条 ========== */
+.progress-bar{height:8px;background:#e0e6ed;border-radius:4px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--primary),#2c5364);border-radius:4px;transition:width .5s ease}
+</style>
+</head>
+<body>
+
+<!-- ====== 登录页 ====== -->
+<div id="login-page" class="login-page">
+<div class="login-card">
+  <div class="login-logo">
+    <div class="icon">🏢</div>
+    <h1>特种设备电梯AI系统</h1>
+    <p>特种设备安全智能判别平台 · v4.0</p>
+  </div>
+  <div class="login-error" id="login-error">登录失败</div>
+  <form id="login-form" onsubmit="handleLogin(event)">
+    <div class="form-group">
+      <label>邮箱</label>
+      <input name="email" type="email" placeholder="admin@demo.com" value="admin@demo.com" required>
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input name="password" type="password" placeholder="123456" value="123456" required>
+    </div>
+    <button type="submit" class="btn-primary" id="login-btn">登录系统</button>
+  </form>
+  <div class="login-hint">演示账号: <strong>admin@demo.com</strong> / <strong>123456</strong></div>
+</div>
+</div>
+
+<!-- ====== 应用主体 ====== -->
+<div id="app" class="app">
+  <header class="app-header">
+    <h1>🏢 电梯AI系统</h1>
+    <div class="header-user">
+      <span id="header-user-name">管理员</span>
+      <span class="role-badge" id="header-user-role">admin</span>
+      <button class="btn-logout" onclick="handleLogout()">退出</button>
+    </div>
+  </header>
+
+  <!-- 仪表盘 -->
+  <div id="page-dashboard" class="page active">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num" id="stat-today">–</div>
+        <div class="stat-label">今日判别</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-pending">–</div>
+        <div class="stat-label">待审任务</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-templates">–</div>
+        <div class="stat-label">激活模板</div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="stat-num" id="stat-rate">–</div>
+        <div class="stat-label">合规率</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 最新判别记录</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>模块</th><th>结果</th><th>时间</th></tr></thead>
+          <tbody id="recent-records"><tr><td colspan="4" class="loading"><span class="spinner"></span>加载中</td></tr></tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px"><button class="btn-secondary" onclick="switchTab('history')">查看全部 →</button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📚 合规知识库</div>
+      <div id="knowledge-list"><div class="loading"><span class="spinner"></span>加载中</div></div>
+    </div>
+  </div>
+
+  <!-- 新建判别 -->
+  <div id="page-discriminate" class="page">
+    <div class="form-section">
+      <h3>⚡ 新建合规判别</h3>
+      <div class="form-group">
+        <label>模块名称</label>
+        <select class="form-input" id="dis-module">
+          <option value="电梯设备检查">电梯设备检查</option>
+          <option value="电梯定期检验">电梯定期检验</option>
+          <option value="电梯维保记录">电梯维保记录</option>
+          <option value="安全管理检查">安全管理检查</option>
+          <option value="电梯故障记录">电梯故障记录</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>检查记录内容</label>
+        <textarea class="form-input" id="dis-content" placeholder="请输入检查记录内容，例如：
+制动器制动片磨损至2.5mm，低于制造单位要求的3mm
+曳引轮绳槽最大磨损量4.5mm
+紧急照明装置无法点亮
+维保周期内正常保养，各装置运行正常"></textarea>
+      </div>
+      <button class="btn-success" onclick="submitDiscriminate()" id="dis-btn">提交AI分析</button>
+      <div id="dis-result"></div>
+    </div>
+    <div id="dis-history"></div>
+  </div>
+
+  <!-- 判别历史 -->
+  <div id="page-history" class="page">
+    <div class="card">
+      <div class="card-title">📋 判别历史 <span id="history-total" style="font-weight:400;font-size:12px;color:var(--muted)"></span></div>
+      <div class="quick-actions" style="margin-bottom:12px">
+        <button class="quick-btn active" onclick="filterHistory('')">全部</button>
+        <button class="quick-btn" onclick="filterHistory('合规')">✅ 合规</button>
+        <button class="quick-btn" onclick="filterHistory('不合规')">❌ 不合规</button>
+        <button class="quick-btn" onclick="filterHistory('待人工')">⏳ 待人工</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>模块</th><th>结果</th><th>置信度</th><th>时间</th></tr></thead>
+          <tbody id="history-list"><tr><td colspan="5" class="loading"><span class="spinner"></span>加载中</td></tr></tbody>
+        </table>
+      </div>
+      <div id="history-pagination" style="margin-top:12px;display:flex;gap:8px;justify-content:center"></div>
+    </div>
+  </div>
+
+  <!-- 审核任务 -->
+  <div id="page-audit" class="page">
+    <div class="card">
+      <div class="card-title">🔍 审核任务 <span id="audit-count" style="font-weight:400;font-size:12px;color:var(--muted)"></span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>记录</th><th>优先级</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+          <tbody id="audit-list"><tr><td colspan="6" class="loading"><span class="spinner"></span>加载中</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" id="audit-detail" style="display:none">
+      <div class="card-title">📝 审核详情</div>
+      <div id="audit-detail-content"></div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button class="btn-success" onclick="auditAction('approve')" style="flex:1">✅ 审核通过</button>
+        <button class="btn-secondary" onclick="auditAction('reject')" style="flex:1;border-color:#e74c3c;color:#e74c3c">❌ 审核驳回</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 知识库 -->
+  <div id="page-knowledge" class="page">
+    <div class="card">
+      <div class="card-title">📚 合规知识库</div>
+      <div id="reg-list"><div class="loading"><span class="spinner"></span>加载中</div></div>
+    </div>
+  </div>
+
+  <!-- 系统日志 -->
+  <div id="page-logs" class="page">
+    <div class="card">
+      <div class="card-title">🔗 哈希链操作日志</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>区块</th><th>操作</th><th>描述</th><th>时间</th></tr></thead>
+          <tbody id="logs-list"><tr><td colspan="4" class="loading"><span class="spinner"></span>加载中</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TabBar -->
+  <nav class="tab-bar">
+    <div class="tab-item active" onclick="switchTab('dashboard')">
+      <span class="tab-icon">📊</span><span>首页</span>
+    </div>
+    <div class="tab-item" onclick="switchTab('discriminate')">
+      <span class="tab-icon">⚡</span><span>判别</span>
+    </div>
+    <div class="tab-item" onclick="switchTab('history')">
+      <span class="tab-icon">📋</span><span>历史</span>
+    </div>
+    <div class="tab-item" onclick="switchTab('audit')">
+      <span class="tab-icon">🔍</span><span>审核</span>
+    </div>
+    <div class="tab-item" onclick="switchTab('knowledge')">
+      <span class="tab-icon">📚</span><span>知识</span>
+    </div>
+  </nav>
+</div>
+
+<script>
+// ========== 全局状态 ==========
+let currentUser = null;
+let currentTab = 'dashboard';
+let historyFilter = '';
+let historyPage = 1;
+let currentAuditId = null;
+
+// ========== 初始化 ==========
+document.addEventListener('DOMContentLoaded', () => {
+  const cookie = getCookie('ev3_tok');
+  if (cookie) {
+    showApp();
+    loadDashboard();
+  } else {
+    showLogin();
+  }
+});
+
+// ========== 工具函数 ==========
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function api(path, options = {}) {
+  const opts = {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options
+  };
+  if (opts.body && typeof opts.body === 'object') opts.body = JSON.stringify(opts.body);
+  return fetch(path, opts).then(r => r.json());
+}
+
+function formatTime(iso) {
+  if (!iso) return '–';
+  return iso.slice(0, 16).replace('T', ' ');
+}
+
+function badge(result) {
+  if (result === '合规') return '<span class="badge badge-success">合规</span>';
+  if (result === '不合规') return '<span class="badge badge-danger">不合规</span>';
+  return '<span class="badge badge-warning">待人工</span>';
+}
+
+// ========== 认证 ==========
+async function handleLogin(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  const fd = new FormData(form);
+  
+  btn.disabled = true;
+  btn.textContent = '登录中...';
+  errEl.style.display = 'none';
+  
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') })
+    });
+    const d = await r.json();
+    
+    if (!r.ok || d.error) {
+      errEl.textContent = d.error || '登录失败，请检查账号密码';
+      errEl.style.display = 'block';
+    } else {
+      // Cookie 已在服务端设置
+      currentUser = d.user;
+      showApp();
+      loadDashboard();
+    }
+  } catch(err) {
+    errEl.textContent = '网络错误，请检查网络连接';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '登录系统';
+  }
+}
+
+async function handleLogout() {
+  await fetch('/logout', { credentials: 'include' });
+  currentUser = null;
+  showLogin();
+}
+
+function showLogin() {
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+
+// ========== 页面切换 ==========
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + tab)?.classList.add('active');
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab-item[onclick*="${tab}"]`)?.classList.add('active');
+  
+  if (tab === 'dashboard') loadDashboard();
+  else if (tab === 'discriminate') loadDiscriminateHistory();
+  else if (tab === 'history') loadHistory();
+  else if (tab === 'audit') loadAudit();
+  else if (tab === 'knowledge') loadKnowledge();
+  else if (tab === 'logs') loadLogs();
+}
+
+// ========== 仪表盘 ==========
+async function loadDashboard() {
+  try {
+    const [stats, me] = await Promise.all([
+      api('/api/dashboard/stats'),
+      api('/api/user/me')
+    ]);
+    
+    document.getElementById('stat-today').textContent = stats.todayDiscriminations || 0;
+    document.getElementById('stat-pending').textContent = stats.pendingAudits || 0;
+    document.getElementById('stat-templates').textContent = stats.activeTemplates || 0;
+    document.getElementById('stat-rate').textContent = stats.compliantRate || '0%';
+    
+    if (me.user) {
+      document.getElementById('header-user-name').textContent = me.user.name;
+      document.getElementById('header-user-role').textContent = me.user.role;
+    }
+    
+    // 最近记录
+    const records = await api('/api/discrimination-records?limit=5');
+    const tbody = document.getElementById('recent-records');
+    if (records.records?.length) {
+      tbody.innerHTML = records.records.map(r =>
+        `<tr><td>${r.id}</td><td>${r.module_name || '–'}</td>${'<td>'+badge(r.final_result)+'</td>'}<td>${formatTime(r.created_at)}</td></tr>`
+      ).join('');
+    } else {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="empty-icon">📭</div><p>暂无记录</p></td></tr>';
+    }
+    
+    // 知识库
+    const regs = await api('/api/regulations');
+    const kEl = document.getElementById('knowledge-list');
+    if (regs.length) {
+      kEl.innerHTML = regs.slice(0, 4).map(r =>
+        `<div style="padding:10px 0;border-bottom:1px solid #f0f2f5">
+          <div style="font-weight:600;font-size:13px;color:var(--primary-dark)">${r.code}</div>
+          <div style="font-size:13px;color:var(--text);margin-top:3px">${r.name}</div>
+        </div>`
+      ).join('');
+    }
+  } catch(err) {
+    console.error('Dashboard load error:', err);
+  }
+}
+
+// ========== 判别 ==========
+async function submitDiscriminate() {
+  const content = document.getElementById('dis-content').value.trim();
+  const moduleName = document.getElementById('dis-module').value;
+  const btn = document.getElementById('dis-btn');
+  const resultEl = document.getElementById('dis-result');
+  
+  if (!content) { alert('请输入检查内容'); return; }
+  
+  btn.disabled = true;
+  btn.textContent = '⏳ AI分析中...';
+  resultEl.innerHTML = '<div class="loading"><span class="spinner"></span>分析中，请稍候...</div>';
+  
+  try {
+    // AI 分类
+    const classify = await api('/api/ai/classify', {
+      method: 'POST',
+      body: { content, moduleName }
+    });
+    
+    // 保存记录
+    const save = await api('/api/discriminate', {
+      method: 'POST',
+      body: { content, moduleName, aiResult: classify.result, aiConfidence: classify.confidence, aiReason: classify.reason, matchedRule: classify.matchedRule }
+    });
+    
+    const badgeClass = classify.result === '合规' ? 'pass' : classify.result === '不合规' ? 'fail' : 'maybe';
+    const suggestions = (classify.suggestions || []).map(s => `<li>${s}</li>`).join('');
+    
+    resultEl.innerHTML = `
+      <div class="ai-result">
+        <div class="ai-result-header">
+          <span class="ai-result-badge ${badgeClass}">${classify.result}</span>
+          <span class="ai-confidence">置信度 ${classify.confidence || 0}% · ${classify.method === 'ollama' ? '🤖 AI模型' : '⚙️ 规则引擎'}</span>
+        </div>
+        <div class="ai-reason">${classify.reason || classify.message || '分析完成'}</div>
+        ${suggestions ? `<ul class="ai-suggestions">${suggestions}</ul>` : ''}
+        ${save.record ? `<div style="margin-top:12px;font-size:12px;color:var(--muted)">已保存为记录 #${save.record.id}</div>` : ''}
+      </div>`;
+    
+    document.getElementById('dis-content').value = '';
+  } catch(err) {
+    resultEl.innerHTML = '<div style="color:var(--danger);padding:12px">分析失败: ' + err.message + '</div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '提交AI分析';
+  }
+}
+
+async function loadDiscriminateHistory() {
+  const records = await api('/api/discrimination-records?limit=5');
+  const el = document.getElementById('dis-history');
+  if (records.records?.length) {
+    el.innerHTML = `<div class="card"><div class="card-title">📋 最近判别</div>
+      <div class="table-wrap"><table><thead><tr><th>ID</th><th>模块</th><th>结果</th><th>时间</th></tr></thead>
+      <tbody>${records.records.map(r => `<tr><td>${r.id}</td><td>${r.module_name||'–'}</td><td>${badge(r.final_result)}</td><td>${formatTime(r.created_at)}</td></tr>`).join('')}</tbody></table></div></div>`;
+  }
+}
+
+// ========== 历史 ==========
+async function loadHistory() {
+  const url = `/api/discrimination-records?page=${historyPage}${historyFilter ? '&result=' + historyFilter : ''}`;
+  const d = await api(url);
+  const tbody = document.getElementById('history-list');
+  document.getElementById('history-total').textContent = `共 ${d.total || 0} 条`;
+  
+  if (d.records?.length) {
+    tbody.innerHTML = d.records.map(r =>
+      `<tr><td>${r.id}</td><td>${r.module_name||'–'}</td>${'<td>'+badge(r.final_result)+'</td>'}<td>${r.ai_confidence||0}%</td><td>${formatTime(r.created_at)}</td></tr>`
+    ).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="empty-icon">📭</div><p>暂无记录</p></td></tr>';
+  }
+  
+  // 分页
+  const totalPages = Math.ceil((d.total || 0) / 20);
+  const pEl = document.getElementById('history-pagination');
+  pEl.innerHTML = '';
+  for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+    const btn = document.createElement('button');
+    btn.className = 'quick-btn' + (i === historyPage ? ' active' : '');
+    btn.textContent = i;
+    btn.onclick = () => { historyPage = i; loadHistory(); };
+    pEl.appendChild(btn);
+  }
+}
+
+function filterHistory(filter) {
+  historyFilter = filter;
+  historyPage = 1;
+  document.querySelectorAll('.quick-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.includes(filter) || (filter === '' && b.textContent === '全部'));
+  });
+  loadHistory();
+}
+
+// ========== 审核 ==========
+async function loadAudit() {
+  const tasks = await api('/api/audit-tasks');
+  const tbody = document.getElementById('audit-list');
+  document.getElementById('audit-count').textContent = tasks.length ? `共 ${tasks.length} 项` : '';
+  
+  if (tasks.length) {
+    tbody.innerHTML = tasks.map(t =>
+      `<tr><td>${t.id}</td><td>#${t.record_id}</td><td>${t.priority==='high'?'🔴高':'🟡普通'}</td>
+      ${'<td><span class="badge badge-warning">待审核</span></td>'}<td>${formatTime(t.created_at)}</td>
+      <td><button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="selectAudit(${t.id})">查看</button></td></tr>`
+    ).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><div class="empty-icon">✅</div><p>暂无待审任务</p></td></tr>';
+  }
+}
+
+async function selectAudit(id) {
+  currentAuditId = id;
+  document.getElementById('audit-detail').style.display = 'block';
+  const tasks = await api('/api/audit-tasks');
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  const record = await api(`/api/discrimination-records/${task.record_id}`);
+  document.getElementById('audit-detail-content').innerHTML = `
+    <p style="margin:8px 0"><strong>模块：</strong>${record.module_name||'–'}</p>
+    <p style="margin:8px 0"><strong>内容：</strong><span style="font-size:13px;color:var(--muted)">${record.record_content||'–'}</span></p>
+    <p style="margin:8px 0"><strong>AI结果：</strong>${badge(record.ai_result||'–')}</p>
+    <p style="margin:8px 0"><strong>AI理由：</strong><span style="font-size:13px">${record.ai_reason||'–'}</span></p>`;
+}
+
+async function auditAction(action) {
+  if (!currentAuditId) return;
+  const comment = prompt('请输入审核意见（可选）：') || '';
+  await api('/api/audit-tasks', {
+    method: 'POST',
+    body: { id: currentAuditId, action, comment }
+  });
+  currentAuditId = null;
+  document.getElementById('audit-detail').style.display = 'none';
+  loadAudit();
+}
+
+// ========== 知识库 ==========
+async function loadKnowledge() {
+  const regs = await api('/api/regulations');
+  const el = document.getElementById('reg-list');
+  if (regs.length) {
+    el.innerHTML = regs.map(r => `
+      <div style="margin-bottom:16px;padding:16px;background:#f8fafc;border-radius:10px;border-left:3px solid var(--primary)">
+        <div style="font-weight:700;font-size:14px;color:var(--primary-dark)">${r.code} · ${r.name}</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:6px">${r.description || '暂无描述'}</div>
+        ${r.effective_date ? `<div style="font-size:12px;color:var(--gray);margin-top:4px">生效日期：${r.effective_date}</div>` : ''}
+      </div>`).join('');
+  } else {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📚</div><p>知识库暂无内容</p></div>';
+  }
+}
+
+// ========== 日志 ==========
+async function loadLogs() {
+  const logs = await api('/api/operation-logs');
+  const tbody = document.getElementById('logs-list');
+  if (logs.length) {
+    tbody.innerHTML = logs.map(l =>
+      `<tr><td>${l.block_index}</td><td>${l.table_name}</td><td>${l.description||'–'}</td><td>${formatTime(l.timestamp)}</td></tr>`
+    ).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="empty-icon">🔗</div><p>暂无日志</p></td></tr>';
+  }
+}
+</script>
+</body>
+</html>
