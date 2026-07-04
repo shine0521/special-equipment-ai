@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>登录 - 特种设备电梯安全管理AI系统</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+}
+:root{--p:#409eff;--d:#f56c6c;--t3:#909399;--bd:#dcdfe6}
+.wrap{width:420px;background:#fff;border-radius:14px;padding:44px 40px 36px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.logo{text-align:center;font-size:48px;margin-bottom:10px}
+.title{text-align:center;font-size:22px;font-weight:700;margin-bottom:4px;color:#303133}
+.sub{text-align:center;color:var(--t3);font-size:13px;margin-bottom:30px}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:12px;color:#606266;margin-bottom:5px;font-weight:500}
+.fg input{width:100%;height:42px;border:1px solid var(--bd);border-radius:6px;padding:0 14px;font-size:14px;outline:none;transition:border-color .2s}
+.fg input:focus{border-color:var(--p)}
+.fg input::placeholder{color:#c0c4cc}
+.subm{width:100%;height:44px;background:var(--p);color:#fff;border:none;border-radius:6px;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s;margin-top:6px}
+.subm:hover{opacity:.85}
+.subm:disabled{opacity:.6;cursor:not-allowed}
+.emsg{color:var(--d);text-align:center;font-size:13px;min-height:18px;margin-top:10px}
+.hint{text-align:center;color:var(--t3);font-size:12px;margin-top:20px}
+.hint a{color:var(--p);text-decoration:none}
+.hint a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">🏗️</div>
+  <h1 class="title">特种设备电梯安全管理AI系统</h1>
+  <p class="sub">请登录以继续使用</p>
+  <% if (typeof error !== 'undefined' && error) { %>
+  <p class="emsg"><%= error %></p>
+  <% } else { %>
+  <p class="emsg"></p>
+  <% } %>
+  <form action="/login" method="POST" id="loginForm">
+    <div class="fg">
+      <label>邮箱地址</label>
+      <input type="email" name="email" placeholder="请输入邮箱" required autocomplete="email">
+    </div>
+    <div class="fg">
+      <label>密码</label>
+      <input type="password" name="password" placeholder="请输入密码" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="subm" id="submitBtn">登 录</button>
+  </form>
+  <p class="hint">特种设备电梯安全管理系统 · V3</p>
+</div>
+</body>
+</html>
