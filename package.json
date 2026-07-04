@@ -1,0 +1,25 @@
+{
+  "name": "special-equipment-ai-system",
+  "version": "4.0.0",
+  "description": "特种设备电梯安全管理AI系统 - 企业级完整版",
+  "main": "server.js",
+  "scripts": {
+    "prebuild": "npm rebuild better-sqlite3",
+    "build": "echo 'Build complete - native modules compiled'",
+    "postinstall": "npm rebuild better-sqlite3 2>/dev/null || true",
+    "start": "node server.js",
+    "seed": "node seed.js",
+    "setup": "node seed.js && node server.js"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "better-sqlite3": "^9.4.3",
+    "cors": "^2.8.5",
+    "ejs": "^6.0.1",
+    "express": "^4.18.2",
+    "uuid": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
