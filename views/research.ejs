@@ -1,0 +1,170 @@
+<%- include('partials/head') %>
+<%- include('partials/topbar') %>
+<div class="shell">
+<%- include('partials/sidebar', {user: user}) %>
+<main class="main">
+  <div class="content">
+    <div class="card">
+      <div class="card-h">
+        <div class="card-t">🔬 模板研究</div>
+        <button class="btn btn-p" onclick="showCreateForm()">+ 新建研究任务</button>
+      </div>
+
+      <!-- 新建表单 -->
+      <div id="createForm" style="display:none;margin-bottom:16px;padding:16px;background:#f9f9f9;border-radius:8px">
+        <div class="form-row">
+          <label>任务名称 <span class="req">*</span></label>
+          <input class="inp" id="taskName" type="text" placeholder="请输入研究任务名称">
+        </div>
+        <div class="form-row">
+          <label>描述</label>
+          <textarea class="txta" id="taskDesc" rows="3" placeholder="研究任务详细描述..."></textarea>
+        </div>
+        <div class="form-row">
+          <label>关联法规</label>
+          <select class="inp" id="taskRegulation">
+            <option value="">不关联</option>
+          </select>
+        </div>
+        <div class="gap">
+          <button class="btn btn-p" onclick="createTask()">💾 创建任务</button>
+          <button class="btn btn-o" onclick="hideCreateForm()">取消</button>
+        </div>
+      </div>
+
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="width:50px">ID</th>
+            <th>任务名称</th>
+            <th style="width:100px">状态</th>
+            <th>关联法规</th>
+            <th style="width:160px">创建时间</th>
+            <th style="width:100px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:#909399;">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+</div>
+
+<div class="modal-overlay" id="detailModal" style="display:none">
+  <div class="modal">
+    <div class="modal-h">
+      <span class="mht">任务详情</span>
+      <button class="mc" onclick="document.getElementById('detailModal').style.display='none'">✕</button>
+    </div>
+    <div class="modal-b" id="modalBody">加载中...</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  function pad(n){return String(n).padStart(2,'0');}
+
+  function loadRegulations(){
+    fetch('/api/regulations', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var sel=document.getElementById('taskRegulation');
+      sel.innerHTML='<option value="">不关联</option>';
+      (d.data||[]).forEach(function(reg){
+        sel.innerHTML+='<option value="'+reg.id+'">'+esc(reg.name)+'</option>';
+      });
+    });
+  }
+
+  function loadTasks(){
+    var tbody=document.getElementById('tableBody');
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#909399;">加载中...</td></tr>';
+    fetch('/api/research-tasks', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var data=d.data||[];
+      if(data.length===0){
+        tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#909399;">暂无研究任务</td></tr>';
+        return;
+      }
+      tbody.innerHTML=data.map(function(t){
+        var stCls=t.status==='active'?'tag-active':t.status==='completed'?'tag-completed':t.status==='failed'?'tag-failed':'tag-draft';
+        var stTxt=t.status==='active'?'进行中':t.status==='completed'?'已完成':t.status==='failed'?'失败':'待启动';
+        var dt=new Date(t.created_at);
+        var ts=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())+' '+pad(dt.getHours())+':'+pad(dt.getMinutes());
+        return '<tr>'+
+               '<td style="color:#409eff">#'+t.id+'</td>'+
+               '<td><strong>'+esc(t.name||'')+'</strong>'+(t.description?'<div style="font-size:11px;color:#909399;margin-top:2px">'+esc(t.description)+'</div>':'')+'</td>'+
+               '<td><span class="tag '+stCls+'">'+stTxt+'</span></td>'+
+               '<td style="color:#909399;font-size:12px">'+(t.regulation_name||'--')+'</td>'+
+               '<td style="color:#909399;font-size:12px">'+ts+'</td>'+
+               '<td><button class="btn btn-o" style="padding:3px 8px;font-size:11px" onclick="showDetail('+t.id+')">详情</button></td></tr>';
+      }).join('');
+    }).catch(function(){
+      tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:#f56c6c;">加载失败</td></tr>';
+    });
+  }
+
+  function showDetail(id){
+    var modal=document.getElementById('detailModal');
+    document.getElementById('modalBody').innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
+    modal.style.display='flex';
+    // 获取任务列表中的单条数据，尝试通过记录详情获取
+    fetch('/api/research-tasks', {credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+      var task=(d.data||[]).find(function(t){return t.id===id;});
+      if(!task){
+        document.getElementById('modalBody').innerHTML='<div style="color:#909399">未找到任务</div>';
+        return;
+      }
+      var stCls=task.status==='active'?'tag-active':task.status==='completed'?'tag-completed':task.status==='failed'?'tag-failed':'tag-draft';
+      var stTxt=task.status==='active'?'进行中':task.status==='completed'?'已完成':task.status==='failed'?'失败':'待启动';
+      var dt=new Date(task.created_at||new Date());
+      var ts=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())+' '+pad(dt.getHours())+':'+pad(dt.getMinutes());
+      document.getElementById('modalBody').innerHTML=
+        '<div class="info-grid mb"><div class="info-item"><span class="lb">ID：</span>#'+task.id+'</div>'+
+        '<div class="info-item"><span class="lb">状态：</span><span class="tag '+stCls+'">'+stTxt+'</span></div></div>'+
+        '<div class="form-row"><label>任务名称</label><div>'+esc(task.name||'')+'</div></div>'+
+        (task.description?'<div class="form-row"><label>描述</label><div style="font-size:13px;color:#606266">'+esc(task.description)+'</div></div>':'')+
+        (task.regulation_name?'<div class="form-row"><label>关联法规</label><div>'+esc(task.regulation_name)+'</div></div>':'')+
+        '<div class="info-grid"><div class="info-item"><span class="lb">创建时间：</span>'+ts+'</div></div>';
+    });
+  }
+
+  window.showDetail=showDetail;
+
+  window.showCreateForm=function(){
+    document.getElementById('createForm').style.display='block';
+    loadRegulations();
+    document.getElementById('createForm').scrollIntoView({behavior:'smooth'});
+  };
+
+  window.hideCreateForm=function(){
+    document.getElementById('createForm').style.display='none';
+    document.getElementById('taskName').value='';
+    document.getElementById('taskDesc').value='';
+    document.getElementById('taskRegulation').value='';
+  };
+
+  window.createTask=function(){
+    var name=document.getElementById('taskName').value.trim();
+    var desc=document.getElementById('taskDesc').value.trim();
+    var regId=document.getElementById('taskRegulation').value;
+    if(!name){alert('任务名称不能为空');return;}
+    var payload={name:name,description:desc};
+    if(regId)payload.regulationId=regId;
+    fetch('/api/research-tasks',{credentials:'include',
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    }).then(function(r){return r.json()}).then(function(d){
+      if(d.error){alert(d.error);return;}
+      alert(d.message||'创建成功');
+      hideCreateForm();
+      loadTasks();
+    }).catch(function(){alert('创建失败');});
+  };
+
+  loadTasks();
+})();
+</script>
+<%- include('partials/foot') %>
