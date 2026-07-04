@@ -1,0 +1,39 @@
+<%- include('partials/head') %>
+<%- include('partials/topbar') %>
+<div class="shell">
+<%- include('partials/sidebar', {user: user}) %>
+<main class="main">
+  <div class="content">
+    <div class="card">
+      <div class="card-h"><div class="card-t">👤 用户信息</div></div>
+      <div class="info-grid mb">
+        <div class="info-item"><span class="lb">用户ID：</span><span>#<%= (user && user.id) ? user.id : '--' %></span></div>
+        <div class="info-item"><span class="lb">角色：</span><span class="tag tag-info"><%= (user && user.role) ? (user.role === 'admin' ? '管理员' : user.role === 'auditor' ? '审核员' : '普通用户') : '--' %></span></div>
+        <div class="info-item"><span class="lb">邮箱：</span><span><%= (user && user.email) ? user.email : '--' %></span></div>
+        <div class="info-item"><span class="lb">名称：</span><span><%= (user && user.name) ? user.name : '--' %></span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div class="card-t">⚙️ 系统信息</div></div>
+      <div class="info-grid">
+        <div class="info-item"><span class="lb">系统版本：</span><span>3.0.0</span></div>
+        <div class="info-item"><span class="lb">架构：</span><span>Node.js + Express + SQLite</span></div>
+        <div class="info-item"><span class="lb">AI引擎：</span><span>本地规则引擎 + AI辅助分析</span></div>
+        <div class="info-item"><span class="lb">哈希留痕：</span><span class="tag tag-ok">已启用</span></div>
+        <div class="info-item"><span class="lb">数据库：</span><span>SQLite (better-sqlite3)</span></div>
+        <div class="info-item"><span class="lb">渲染引擎：</span><span>EJS</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><div class="card-t">🔒 安全操作</div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="/dashboard" class="btn btn-o">📊 返回仪表盘</a>
+        <a href="/logout" class="btn btn-d">🚪 退出登录</a>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+<%- include('partials/foot') %>
