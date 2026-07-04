@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
+<title>判别历史 · 特种设备AI</title>
+<style>
+:root{--p:#409eff;--s:#67c23a;--d:#f56c6c;--w:#e6a23c;--bg:#f5f7fa;--card:#fff;--tx:#303133;--t2:#606266;--t3:#909399;--t4:#c0c4ce;--bd:#dcdfe6;--bdr:8px}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font:13px/1.5 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);margin:0 auto;min-height:100vh;max-width:480px}
+.m-shell{min-height:100vh;padding-bottom:56px}
+.m-topbar{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.m-topbar .tl{font-size:15px;font-weight:600}
+.m-content{padding:10px}
+.m-card{background:var(--card);border-radius:var(--bdr);padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.m-card-h{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+
+/* ── 搜索栏 ── */
+.m-search{display:flex;gap:6px;margin-bottom:10px}
+.m-search .si{flex:1;height:36px;border:1px solid var(--bd);border-radius:6px;padding:0 10px;font-size:13px;outline:none;transition:border-color .2s}
+.m-search .si:focus{border-color:var(--p)}
+.m-search .sel{height:36px;border:1px solid var(--bd);border-radius:6px;padding:0 6px;font-size:12px;outline:none;background:#fff;flex-shrink:0}
+.m-search .sb{height:36px;padding:0 12px;border:none;border-radius:6px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.m-search .sb:active{opacity:.8}
+
+/* ── 记录列表 ── */
+.m-row{padding:10px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:background .1s;display:flex;align-items:center;gap:8px}
+.m-row:last-child{border-bottom:none}
+.m-row:active{background:#f5f7fa}
+.m-row .rid{color:var(--t3);font-size:10px;flex-shrink:0;width:28px;text-align:center;font-weight:500}
+.m-row .rbd{flex:1;min-width:0}
+.m-row .rnm{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-row .rtm{font-size:10px;color:var(--t3);margin-top:1px}
+.m-row .rtg{flex-shrink:0;margin-left:auto}
+
+.m-tag{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.m-tag-ok{background:#f0f9eb;color:var(--s)}
+.m-tag-ng{background:#fef0f0;color:var(--d)}
+.m-tag-mb{background:#fdf6ec;color:var(--w)}
+
+/* ── 分页 ── */
+.m-pages{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 0;font-size:12px}
+.m-pages .pgb{height:32px;padding:0 14px;border:1px solid var(--bd);border-radius:6px;background:#fff;font-size:12px;cursor:pointer}
+.m-pages .pgb:disabled{opacity:.4;cursor:not-allowed}
+.m-pages .pgb:active:not(:disabled){background:#f0f2f5}
+.m-pages .pgi{color:var(--t2)}
+
+/* ── 弹窗 ── */
+.m-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.m-modal{background:#fff;border-radius:12px;max-width:380px;width:100%;max-height:82vh;overflow:hidden;display:flex;flex-direction:column;animation:mFadeIn .18s ease}
+@keyframes mFadeIn{from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
+.m-modal-h{padding:12px 14px 10px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f0;flex-shrink:0}
+.m-modal-close{font-size:20px;cursor:pointer;color:var(--t3);width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.m-modal-close:active{background:#f0f2f5}
+.m-modal-b{padding:10px 14px 14px;overflow-y:auto;flex:1}
+.m-modal-b .md-sec{margin-bottom:10px}
+.m-modal-b .md-sec:last-child{margin-bottom:0}
+.m-modal-b .md-hd{font-size:11px;color:var(--t3);font-weight:600;margin-bottom:4px;text-transform:uppercase}
+.m-modal-b .md-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.m-modal-b .md-tbl td{padding:5px 0;border-bottom:1px solid #f0f0f0;vertical-align:top}
+.m-modal-b .md-tbl td:first-child{color:var(--t3);width:50px;padding-right:8px;white-space:nowrap}
+.m-modal-b .md-tbl td:last-child{word-break:break-all}
+.m-modal-b .md-rule{padding:6px 0;border-bottom:1px solid #f0f0f0}
+.m-modal-b .md-rule:last-child{border-bottom:none}
+.m-modal-b .md-rule .rn{font-size:12px;font-weight:500;display:flex;align-items:center;gap:4px}
+.m-modal-b .md-rule .rd{font-size:10px;color:var(--t2);margin-top:2px}
+
+.m-loading{text-align:center;padding:30px;color:var(--t3);font-size:12px}
+.m-empty{text-align:center;padding:30px;color:var(--t3);font-size:12px}
+.m-empty .ico{font-size:32px;display:block;margin-bottom:6px}
+
+/* ── TabBar ── */
+.m-tabbar{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;height:50px;background:#fff;display:flex;box-shadow:0 -1px 4px rgba(0,0,0,.06);z-index:100;border-top:1px solid #f0f0f0}
+.m-tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;color:var(--t3);font-size:9px;transition:color .15s}
+.m-tabbar a.on{color:var(--p)}
+.m-tabbar a span{font-size:20px;margin-bottom:1px}
+</style>
+</head>
+<body class="iphone-host">
+<%- include('partials/iphone_frame_start') %>
+
+<div class="m-shell">
+
+<div class="m-topbar">
+<div class="tl">📋 判别历史</div>
+</div>
+
+<div class="m-content">
+
+<!-- 搜索栏 -->
+<div class="m-search">
+<input class="si" id="searchInput" placeholder="搜索模板名称..." onkeydown="if(event.key==='Enter')loadPage(1)">
+<select class="sel" id="resultFilter" onchange="loadPage(1)">
+<option value="">全部结果</option>
+<option value="合规">✅ 合规</option>
+<option value="不合规">❌ 不合规</option>
+<option value="待人工">⚠️ 待人工</option>
+</select>
+<button class="sb" onclick="loadPage(1)">搜索</button>
+</div>
+
+<!-- 列表 -->
+<div class="m-card">
+<div class="m-card-h"><span>📄 判别记录</span><span id="totalCount" style="font-size:11px;font-weight:400;color:var(--t3)"></span></div>
+<div id="listContainer"><div class="m-loading">加载中...</div></div>
+<div class="m-pages" id="pageNav" style="display:none">
+<button class="pgb" id="prevBtn" onclick="loadPage(currentPage-1)">‹ 上一页</button>
+<span class="pgi" id="pageInfo"></span>
+<button class="pgb" id="nextBtn" onclick="loadPage(currentPage+1)">下一页 ›</button>
+</div>
+</div>
+
+</div>
+</div>
+
+
+<script>
+var currentPage=1;
+
+function loadPage(page){
+  var search=document.getElementById('searchInput').value;
+  var result=document.getElementById('resultFilter').value;
+  var container=document.getElementById('listContainer');
+  var pageNav=document.getElementById('pageNav');
+
+  container.innerHTML='<div class="m-loading">加载中...</div>';
+
+  var q='?page='+page;
+  if(search)q+='&search='+encodeURIComponent(search);
+  if(result)q+='&result='+encodeURIComponent(result);
+
+  fetch('/api/discrimination-records'+q,{credentials:'include'})
+    .then(function(r){if(!r.ok)throw new Error('请求失败');return r.json()})
+    .then(function(d){
+      currentPage=d.page||1;
+      document.getElementById('totalCount').textContent='共 '+(d.total||0)+' 条';
+
+      if(!d.data||d.data.length===0){
+        container.innerHTML='<div class="m-empty"><span class="ico">📭</span>暂无记录</div>';
+        pageNav.style.display='none';
+        return;
+      }
+
+      container.innerHTML=d.data.map(function(r){
+        var cls=r.final_result==='合规'?'ok':r.final_result==='不合规'?'ng':'mb';
+        var name=r.template_name||r.templateName||'-';
+        if(name.length>12)name=name.substring(0,12)+'…';
+        var time=r.created_at||r.createdAt||'';
+        return '<div class="m-row" onclick="showDetail('+(r.id||0)+')">'+
+          '<div class="rid">#'+(r.id||'')+'</div>'+
+          '<div class="rbd">'+
+            '<div class="rnm">'+name+'</div>'+
+            (time?'<div class="rtm">'+time.substring(0,16)+'</div>':'')+
+          '</div>'+
+          '<div class="rtg"><span class="m-tag m-tag-'+cls+'">'+(r.final_result||'-')+'</span></div>'+
+        '</div>';
+      }).join('');
+
+      // 分页
+      var totalPages=d.totalPages||1;
+      if(totalPages>1){
+        pageNav.style.display='flex';
+        document.getElementById('pageInfo').textContent=currentPage+'/'+totalPages;
+        document.getElementById('prevBtn').disabled=currentPage<=1;
+        document.getElementById('nextBtn').disabled=currentPage>=totalPages;
+      }else{
+        pageNav.style.display='none';
+      }
+    })
+    .catch(function(e){
+      container.innerHTML='<div class="m-loading" style="color:var(--d)">加载失败：'+e.message+'</div>';
+      pageNav.style.display='none';
+    });
+}
+
+// ── 详情弹窗 ──
+function showDetail(id){
+  var overlay=document.createElement('div');
+  overlay.className='m-overlay';
+  overlay.onclick=function(e){if(e.target===overlay)closeModal(overlay);};
+
+  var modal=document.createElement('div');
+  modal.className='m-modal';
+  modal.innerHTML=
+    '<div class="m-modal-h">'+
+      '<span>📄 记录详情 #'+id+'</span>'+
+      '<div class="m-modal-close" onclick="closeModal(this.closest(\'.m-overlay\'))">✕</div>'+
+    '</div>'+
+    '<div class="m-modal-b"><div class="m-loading">加载中...</div></div>';
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  fetch('/api/discrimination-records/'+id,{credentials:'include'})
+    .then(function(r){if(!r.ok)throw new Error('请求失败');return r.json()})
+    .then(function(d){
+      var record=d.record||d;
+      var audit=d.auditTask;
+
+      var html='';
+
+      // 基本信息
+      html+='<div class="md-sec">'+
+        '<div class="md-hd">📋 基本信息</div>'+
+        '<table class="md-tbl">'+
+          '<tr><td>ID</td><td>'+(record.id||'-')+'</td></tr>'+
+          '<tr><td>模板</td><td>'+(record.template_name||record.templateName||'-')+'</td></tr>'+
+          (record.final_result?'<tr><td>结果</td><td><span class="m-tag '+(record.final_result==='合规'?'m-tag-ok':record.final_result==='不合规'?'m-tag-ng':'m-tag-mb')+'">'+record.final_result+'</span></td></tr>':'<tr><td>结果</td><td>-</td></tr>')+
+          (record.created_at||record.createdAt?'<tr><td>时间</td><td>'+(record.created_at||record.createdAt).substring(0,19)+'</td></tr>':'')+
+        '</table></div>';
+
+      // 表单数据
+      var fd=record.form_data||record.formData||{};
+      if(Object.keys(fd).length>0){
+        html+='<div class="md-sec"><div class="md-hd">📝 输入字段</div><table class="md-tbl">';
+        for(var k in fd){
+          html+='<tr><td>'+k+'</td><td>'+(fd[k]||'-')+'</td></tr>';
+        }
+        html+='</table></div>';
+      }
+
+      // 规则结果
+      var rr=record.rule_results||record.ruleResults||[];
+      if(rr.length>0){
+        html+='<div class="md-sec"><div class="md-hd">⚖️ 规则判定</div>';
+        rr.forEach(function(r){
+          var ico=r.status==='success'?'✅':r.status==='error'?'❌':'⚠️';
+          html+='<div class="md-rule"><div class="rn">'+ico+' '+r.name+'</div>'+
+            (r.description?'<div class="rd">'+r.description+'</div>':'')+
+            (r.result?'<div class="rd">结果：'+r.result+'</div>':'')+
+            (r.formula?'<div class="rd">公式：'+r.formula+'</div>':'')+
+            (r.clause?'<div class="rd">依据：'+r.clause+'</div>':'')+
+          '</div>';
+        });
+        html+='</div>';
+      }
+
+      // 审计信息
+      if(audit){
+        html+='<div class="md-sec"><div class="md-hd">🔍 审计</div>'+
+          '<table class="md-tbl">'+
+            '<tr><td>状态</td><td>'+(audit.status||'-')+'</td></tr>'+
+            (audit.auditor?'<tr><td>审核人</td><td>'+audit.auditor+'</td></tr>':'')+
+          '</table></div>';
+      }
+
+      modal.querySelector('.m-modal-b').innerHTML=html;
+    })
+    .catch(function(e){
+      modal.querySelector('.m-modal-b').innerHTML='<div class="m-loading" style="color:var(--d)">加载失败：'+e.message+'</div>';
+    });
+}
+
+function closeModal(overlay){
+  if(overlay&&overlay.parentNode){
+    overlay.parentNode.removeChild(overlay);
+  }
+}
+
+// 初始加载
+loadPage(1);
+</script>
+
+<%- include('partials/iphone_frame_end') %>
+</body>
+</html>
