@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>错误 - 特种设备电梯安全管理AI系统</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:#f0f2f5;
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+}
+.wrap{text-align:center;max-width:500px;padding:20px}
+.icon{font-size:72px;margin-bottom:16px}
+.title{font-size:24px;font-weight:700;color:#303133;margin-bottom:10px}
+.message{font-size:14px;color:#606266;line-height:1.8;margin-bottom:24px}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 22px;border-radius:6px;font-size:14px;font-weight:500;text-decoration:none;cursor:pointer;border:none;transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn-p{background:#409eff;color:#fff}
+.btn-o{background:#fff;color:#606266;border:1px solid #dcdfe6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="icon">⚠️</div>
+  <h1 class="title">出错了</h1>
+  <p class="message"><%= typeof message !== 'undefined' ? message : '发生了未知错误，请返回首页重试。' %></p>
+  <div class="actions">
+    <a href="/dashboard" class="btn btn-p">📊 返回仪表盘</a>
+    <a href="javascript:history.back()" class="btn btn-o">← 返回上页</a>
+  </div>
+</div>
+</body>
+</html>
