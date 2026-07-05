@@ -1,7 +1,7 @@
 /**
- * Cloudflare Pages Functions - API 路由入口
+ * Cloudflare Pages Functions - API 路由入口 (D1 Session 版)
  * 处理所有 /api/* 请求
- * 使用 Cloudflare KV 存储 Session，D1 执行数据库操作
+ * 使用 D1 存储 Session 和所有数据
  */
 
 export async function onRequest(context) {
@@ -48,7 +48,7 @@ async function route(path, request, env, url) {
   
   // 健康检查
   if (path === 'health') {
-    return { status: 'ok', env: 'cloudflare-pages', version: '4.0.0' };
+    return { status: 'ok', env: 'cloudflare-pages', version: '4.0.0-d1' };
   }
   
   // 获取 Session
@@ -119,32 +119,44 @@ async function route(path, request, env, url) {
   return { error: '未找到接口' };
 }
 
-// ============ Session ============
+// ============ Session (D1) ============
 async function getSession(request, env) {
   const cookies = parseCookies(request.headers.get('Cookie') || '');
   const token = cookies['ev3_tok'];
   if (!token) return null;
   try {
-    const data = await env.SESSIONS.get('sess:' + token);
-    if (!data) return null;
-    return JSON.parse(data);
+    const row = await env.DB
+      .prepare("SELECT data, expires_at FROM sessions WHERE id = ? AND expires_at > unixepoch()")
+      .bind(token).first();
+    if (!row) return null;
+    return JSON.parse(row.data);
   } catch {
     return null;
   }
 }
 
 async function createSession(user, env) {
-  const token = generateToken(user.email);
+  const token = await generateToken(user.email);
   const session = { id: user.id, email: user.email, name: user.name, role: user.role, created: Date.now() };
-  await env.SESSIONS.put('sess:' + token, JSON.stringify(session), { expirationTtl: 86400 });
+  const expiresAt = Math.floor(Date.now() / 1000) + 86400; // 24小时
+  await env.DB
+    .prepare("INSERT OR REPLACE INTO sessions (id, data, expires_at) VALUES (?, ?, ?)")
+    .bind(token, JSON.stringify(session), expiresAt)
+    .run();
   return token;
 }
 
-function generateToken(email) {
+async function deleteSession(token, env) {
+  await env.DB
+    .prepare("DELETE FROM sessions WHERE id = ?")
+    .bind(token)
+    .run();
+}
+
+async function generateToken(email) {
   const data = new TextEncoder().encode(email + ':' + Date.now() + ':' + Math.random());
-  return crypto.subtle.digest('SHA-256', data).then(buf => {
-    return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\//g, '_').replace(/\+/g, '-').slice(0, 64);
-  });
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return btoa(String.fromCharCode(...new Uint8Array(hashBuffer))).replace(/\//g, '_').replace(/\+/g, '-').slice(0, 64);
 }
 
 function parseCookies(header) {
